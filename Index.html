@@ -1,520 +1,508 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  Activity, Droplet, Beaker, Play, Pause, RotateCcw, 
-  LayoutDashboard, Settings, HeartPulse, Brain, Zap, 
-  GitCompare, UserCheck, Stethoscope, Thermometer, ArrowRight,
-  AlertTriangle
-} from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physiology Sandbox: Advanced</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .bar-transition { transition: height 0.3s ease-out, bottom 0.3s ease-out; }
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .custom-scrollbar::-webkit-scrollbar { height: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        input[type=range] { -webkit-appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: currentColor; cursor: pointer; margin-top: -6px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #e2e8f0; border-radius: 2px; }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 min-h-screen pb-20">
 
-// --- Types & Constants ---
-
-type FluidType = 'saline' | 'hartmanns' | 'plasmalyte' | 'albumin4' | 'albumin20' | 'bicarb_dex' | 'mannitol';
-type DistributionProfile = 'ecf' | 'tbw' | 'plasma' | 'plasma_expand';
-type TabView = 'stewart' | 'starling' | 'micro' | 'comparator' | 'cases';
-
-interface FluidData {
-  name: string;
-  na: number; cl: number; k: number; mg: number; ca: number;
-  organic: number; albuminContent: number; hco3_load: number;
-  osm: number; // mOsm/kg
-  description: string;
-  distribution: DistributionProfile;
-}
-
-const FLUIDS: Record<FluidType, FluidData> = {
-  saline: {
-    name: "0.9% Saline",
-    na: 154, cl: 154, k: 0, mg: 0, ca: 0, organic: 0, albuminContent: 0, hco3_load: 0, osm: 308,
-    description: "SID=0. Hyperchloraemic acidosis. High Cl- may reduce GFR.",
-    distribution: 'ecf'
-  },
-  hartmanns: {
-    name: "Hartmann's",
-    na: 131, cl: 111, k: 5, mg: 0, ca: 2, organic: 29, albuminContent: 0, hco3_load: 0, osm: 274,
-    description: "Balanced. Lactate->Bicarb. pH neutral.",
-    distribution: 'ecf'
-  },
-  plasmalyte: {
-    name: "Plasma-Lyte 148",
-    na: 140, cl: 98, k: 5, mg: 1.5, ca: 0, organic: 50, albuminContent: 0, hco3_load: 0, osm: 295,
-    description: "Balanced. Acetate/Gluconate->Bicarb.",
-    distribution: 'ecf'
-  },
-  albumin4: {
-    name: "Albumin 4%",
-    na: 140, cl: 128, k: 0, mg: 0, ca: 0, organic: 0, albuminContent: 40, hco3_load: 0, osm: 290,
-    description: "Iso-oncotic. Weak acid load (Atot).",
-    distribution: 'plasma'
-  },
-  albumin20: {
-    name: "Albumin 20%",
-    na: 140, cl: 120, k: 0, mg: 0, ca: 0, organic: 0, albuminContent: 200, hco3_load: 0, osm: 310,
-    description: "Hyper-oncotic. Recruits ISF to Plasma.",
-    distribution: 'plasma_expand'
-  },
-  bicarb_dex: {
-    name: "NaHCO3 + D5W",
-    na: 140, cl: 0, k: 0, mg: 0, ca: 0, organic: 0, albuminContent: 0, hco3_load: 140, osm: 550, // Hypertonic initially but D5W free water
-    description: "Free water (ICF swell) + Alkalosis.",
-    distribution: 'tbw'
-  },
-  mannitol: {
-    name: "Mannitol 20%",
-    na: 0, cl: 0, k: 0, mg: 0, ca: 0, organic: 0, albuminContent: 0, hco3_load: 0, osm: 1098,
-    description: "Osmotic diuretic. Shrinks cells.",
-    distribution: 'ecf' // Treats ECF but draws from ICF
-  }
-};
-
-// --- Physiological Baselines (70kg Male) ---
-const BASE_TBW = 42;
-const BASE_ECF_VOL = 14; 
-const BASE_ISF_VOL = 10.5;
-const BASE_PV_VOL = 3.5;
-const BASE_OSM = 285;
-
-// Electrolytes
-const BASE_NA = 140; const BASE_CL = 100; const BASE_K = 4.0;
-const BASE_MG = 1.0; const BASE_CA = 1.2; const BASE_ALB = 40;
-
-// Kinetics
-const K_REDIST_CRYSTALLOID = 0.15; 
-const K_REDIST_SEPSIS = 0.45; // Glycocalyx breakdown
-const K_RENAL_BASE = 0.02; // L/min max clearance approx
-
-// --- Helper: Simulation Step Engine ---
-interface SimState {
-  plasma: number; isf: number; icf: number; urine: number;
-  na: number; cl: number; k: number; hco3: number; alb: number;
-  ph: number; osm: number; sid: number;
-}
-
-const runPhysicsStep = (
-  prev: SimState, 
-  fluid: FluidData, 
-  dt: number, 
-  infusionRate: number, // L/min
-  isSepsis: boolean,
-  isRenalImpairment: boolean = false
-): SimState => {
-  
-  // 1. Infusion
-  const infusedVol = infusionRate * dt;
-  let newPlasma = prev.plasma + infusedVol;
-  let newISF = prev.isf;
-  let newICF = prev.icf;
-  
-  // 2. Redistribution
-  const leakRate = isSepsis ? K_REDIST_SEPSIS : K_REDIST_CRYSTALLOID;
-  
-  if (fluid.distribution === 'ecf' || fluid.name.includes('Mannitol')) {
-     const gradient = (newPlasma / BASE_PV_VOL) - (newISF / BASE_ISF_VOL);
-     if (gradient > 0) {
-        const flux = gradient * leakRate * dt; 
-        newPlasma -= flux; newISF += flux;
-     }
-  } else if (fluid.distribution === 'plasma_expand') {
-      const pull = 0.05 * dt; 
-      if (newISF > BASE_ISF_VOL * 0.8) { 
-         newPlasma += pull; newISF -= pull;
-      }
-  } else if (fluid.distribution === 'tbw') {
-      const flux = 0.2 * dt;
-      newPlasma -= flux * 0.2;
-      newISF -= flux * 0.2;
-      newICF += flux * 0.4;
-  }
-  
-  if (fluid.name.includes('Mannitol')) {
-      const osmoticPull = 0.1 * dt;
-      newICF -= osmoticPull;
-      newPlasma += osmoticPull;
-  }
-
-  // 3. Renal Clearance
-  const clPenalty = (fluid.cl > 140 && infusionRate > 0) ? 0.7 : 1.0;
-  const volStatus = newPlasma / BASE_PV_VOL;
-  let urineRate = (volStatus > 1 ? (volStatus - 1) * K_RENAL_BASE : 0.001) * clPenalty;
-  
-  if (isRenalImpairment) urineRate *= 0.1; 
-
-  const urineVol = urineRate * dt;
-  newPlasma -= urineVol;
-  const totalUrine = prev.urine + urineVol;
-
-  // 4. Electrolyte Mixing
-  const totalVolECF = newPlasma + newISF + BASE_ECF_VOL; 
-  
-  const mix = 0.1; 
-  const nextNa = prev.na + (fluid.na - prev.na) * (infusedVol / totalVolECF) * mix;
-  const nextCl = prev.cl + (fluid.cl - prev.cl) * (infusedVol / totalVolECF) * mix;
-  const nextAlb = prev.alb + (fluid.albuminContent - prev.alb) * (infusedVol / totalVolECF) * mix;
-  
-  // SID & pH
-  const strongCations = nextNa + BASE_K + (BASE_MG*2) + (BASE_CA*2); // Simplified
-  const sid = strongCations - nextCl;
-  const atot = nextAlb * 0.28; 
-  const hco3 = Math.max(0, sid - atot); // Simplified Stewart
-  const ph = 6.1 + Math.log10(hco3 / 1.2);
-
-  let nextOsm = prev.osm;
-  if (fluid.osm > 300) nextOsm += 0.5 * dt;
-  if (fluid.osm < 280) nextOsm -= 0.5 * dt;
-
-  return {
-    plasma: newPlasma, isf: newISF, icf: newICF, urine: totalUrine,
-    na: nextNa, cl: nextCl, k: prev.k, hco3, alb: nextAlb,
-    ph, osm: nextOsm, sid
-  };
-};
-
-
-// --- COMPONENT: Stewart & Gamblegram (Main) ---
-const StewartSimulator = () => {
-  const [selectedFluid, setSelectedFluid] = useState<FluidType>('saline');
-  const [targetVolume, setTargetVolume] = useState<number>(1000); 
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [sepsisMode, setSepsisMode] = useState(false);
-  
-  const [state, setState] = useState<SimState>({
-    plasma: 0, isf: 0, icf: 0, urine: 0,
-    na: BASE_NA, cl: BASE_CL, k: BASE_K, hco3: 24, alb: BASE_ALB,
-    ph: 7.4, osm: 285, sid: 40
-  });
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isPlaying) {
-      interval = setInterval(() => {
-        setState(prev => {
-           const dt = 0.5; // mins
-           const rate = (targetVolume/1000) / 30; 
-           const isInfusing = prev.plasma < (targetVolume/1000) * 1.5; 
-           
-           return runPhysicsStep(prev, FLUIDS[selectedFluid], dt, isInfusing ? rate : 0, sepsisMode);
-        });
-      }, 50);
-    }
-    return () => clearInterval(interval);
-  }, [isPlaying, selectedFluid, targetVolume, sepsisMode]);
-
-  const reset = () => {
-    setIsPlaying(false);
-    setState({
-        plasma: 0, isf: 0, icf: 0, urine: 0,
-        na: BASE_NA, cl: BASE_CL, k: BASE_K, hco3: 24, alb: BASE_ALB,
-        ph: 7.4, osm: 285, sid: 40
-    });
-  };
-
-  const cellRadius = 40 * (285 / state.osm);
-  const scale = 3.0; // Scale for Gamblegram
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-      {/* CONTROLS */}
-      <div className="lg:col-span-3 space-y-4">
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-4">
-           <h3 className="font-bold text-slate-700 uppercase text-xs tracking-wider">Infusion Protocol</h3>
-           <select 
-              value={selectedFluid} onChange={(e) => setSelectedFluid(e.target.value as FluidType)}
-              className="w-full p-2 border rounded text-sm font-semibold"
-           >
-              {Object.entries(FLUIDS).map(([k,v]) => <option key={k} value={k}>{v.name}</option>)}
-           </select>
-           
-           <div className="flex items-center gap-2 text-sm">
-             <span className="font-semibold text-xs">Sepsis Mode</span>
-             <button 
-               onClick={() => setSepsisMode(!sepsisMode)}
-               className={`w-10 h-5 rounded-full transition-colors relative ${sepsisMode ? 'bg-red-500' : 'bg-slate-300'}`}
-             >
-                <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${sepsisMode ? 'left-6' : 'left-1'}`} />
-             </button>
-           </div>
-
-           <div className="flex gap-2">
-              <button onClick={() => setIsPlaying(!isPlaying)} className="flex-1 btn-primary py-2 rounded bg-blue-600 text-white font-bold text-sm flex items-center justify-center gap-2">
-                {isPlaying ? <Pause size={16}/> : <Play size={16}/>} {isPlaying ? 'Pause' : 'Infuse'}
-              </button>
-              <button onClick={reset} className="p-2 bg-slate-100 rounded hover:bg-slate-200"><RotateCcw size={18}/></button>
-           </div>
-        </div>
+    <div class="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
         
-        <div className="bg-slate-800 text-white p-4 rounded-xl space-y-3 text-sm">
-           <div className="flex justify-between border-b border-slate-600 pb-2"><span>pH</span><span className={`font-mono font-bold text-lg ${state.ph < 7.35 ? 'text-red-400' : 'text-green-400'}`}>{state.ph.toFixed(2)}</span></div>
-           <div className="flex justify-between"><span>SID (mEq/L)</span><span className="font-mono font-bold">{state.sid.toFixed(1)}</span></div>
-           <div className="flex justify-between"><span>HCO3 (mmol)</span><span className="font-mono font-bold text-green-400">{state.hco3.toFixed(1)}</span></div>
-        </div>
-
-        {/* Volume Buckets Mini-View */}
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 h-48 flex items-end justify-center gap-2 relative">
-             <div className="absolute top-2 left-2 text-[10px] font-bold text-slate-400 uppercase">Volume Status</div>
-             <div className="w-1/3 bg-red-100 rounded-t h-full flex items-end relative">
-                <div className="w-full bg-red-500 transition-all duration-300" style={{ height: `${20 + (state.plasma/3)*80}%` }}></div>
-                <div className="absolute bottom-1 left-0 w-full text-center text-[10px] font-bold text-white mix-blend-difference">Plasma</div>
-             </div>
-             <div className="w-1/3 bg-blue-100 rounded-t h-full flex items-end relative">
-                <div className="w-full bg-blue-400 transition-all duration-300" style={{ height: `${30 + (state.isf/5)*70}%` }}></div>
-                <div className="absolute bottom-1 left-0 w-full text-center text-[10px] font-bold text-white mix-blend-difference">Edema</div>
-             </div>
-             <div className="w-1/3 bg-yellow-50 rounded-t h-full flex items-end border border-yellow-100 relative">
-                <div className="w-full bg-yellow-400 transition-all duration-300" style={{ height: `${(state.urine/2)*100}%` }}></div>
-                <div className="absolute bottom-1 left-0 w-full text-center text-[10px] font-bold text-yellow-800">Urine</div>
-             </div>
-        </div>
-      </div>
-
-      {/* GAMBLEGRAM (HERO) */}
-      <div className="lg:col-span-9 bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col relative overflow-hidden">
-          <h2 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2 border-b pb-2">
-            <Beaker className="text-blue-600"/> Gamblegram: Strong Ion Difference (SID)
-          </h2>
-          
-          <div className="flex-1 flex items-end justify-center gap-12 select-none pb-8 overflow-x-auto">
-             
-             {/* CATIONS */}
-             <div className="w-32 flex flex-col shadow-2xl shadow-slate-200 group relative">
-                <div className="absolute -top-8 w-full text-center font-bold text-slate-400 text-xs uppercase tracking-wider">Strong Cations</div>
-                
-                {/* Mg/Ca/K */}
-                <div className="bg-amber-300 w-full flex items-center justify-center text-xs font-bold text-amber-900 border-b border-white/20" style={{ height: `${(4.4 + 2.2) * scale}px` }}>
-                   Mg/Ca/K
-                </div>
-                {/* Na */}
-                <div className="bg-red-500 w-full flex items-center justify-center text-white font-bold rounded-b-lg text-xl" style={{ height: `${state.na * scale}px` }}>
-                   Na⁺
-                   <span className="text-xs ml-1 opacity-70 font-normal">{state.na.toFixed(0)}</span>
-                </div>
-             </div>
-
-             {/* ANIONS */}
-             <div className="w-32 flex flex-col shadow-2xl shadow-slate-200 relative">
-                <div className="absolute -top-8 w-full text-center font-bold text-slate-400 text-xs uppercase tracking-wider">Anions</div>
-                
-                {/* Albumin (Weak Acid) */}
-                <div className="bg-purple-400 w-full flex flex-col items-center justify-center text-xs font-bold text-white border-b border-white/20 transition-all duration-500" style={{ height: `${(state.alb * 0.28) * scale}px` }}>
-                   <span>A⁻ (Alb)</span>
-                </div>
-
-                {/* HCO3 */}
-                <div className="bg-green-500 w-full flex flex-col items-center justify-center text-white font-bold border-b border-white/20 relative transition-all duration-500" style={{ height: `${state.hco3 * scale}px` }}>
-                   <span className="text-xl">HCO₃⁻</span>
-                   <span className="text-xs opacity-80">{state.hco3.toFixed(1)}</span>
-                   
-                   {/* SID Indicator */}
-                   <div className="absolute -right-6 top-0 border-r-4 border-slate-400 border-t-4 border-b-4 rounded-r-lg flex items-center justify-center" 
-                        style={{ height: `${(state.hco3 + (state.alb*0.28)) * scale}px`, top: `-${(state.alb*0.28) * scale}px`, width: '12px' }}>
-                   </div>
-                   <div className="absolute -right-24 top-0 text-sm font-bold text-slate-500 transform -translate-y-[50%] -mt-[50%]" 
-                        style={{ top: `-${(state.alb*0.28) * scale * 0.5}px` }}>
-                        SID ({state.sid.toFixed(0)})
-                   </div>
-                </div>
-
-                {/* Chloride */}
-                <div className="bg-blue-500 w-full flex items-center justify-center text-white font-bold rounded-b-lg text-xl transition-all duration-500" style={{ height: `${state.cl * scale}px` }}>
-                   Cl⁻
-                   <span className="text-xs ml-1 opacity-70 font-normal">{state.cl.toFixed(0)}</span>
-                </div>
-             </div>
-          </div>
-
-          <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-600 border border-slate-200 mt-4">
-             <p className="font-bold mb-1">Key Concept: Electroneutrality</p>
-             <p>The body must maintain balanced charge. The <strong>Strong Ion Difference (SID)</strong> is the space left between Strong Cations (Na⁺) and Strong Anions (Cl⁻). This space is filled by Weak Acids (Albumin) and Bicarbonate. </p>
-             <p className="mt-2 text-blue-700">If you infuse Saline (High Cl⁻), the Chloride bar rises, shrinking the SID. Bicarbonate is squeezed out → <strong>Metabolic Acidosis</strong>.</p>
-          </div>
-      </div>
-    </div>
-  );
-};
-
-// --- COMPONENT: Micro-Physiology (Cellular) ---
-const CellularView = () => {
-  const [ph, setPh] = useState(7.4);
-  const k_ecf = 4.0 + (7.4 - ph) * 6; 
-  
-  return (
-     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center h-full max-w-4xl mx-auto">
-        <div className="space-y-6">
-           <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-              <h3 className="font-bold text-slate-800 mb-4">Extracellular pH</h3>
-              <input type="range" min="6.9" max="7.6" step="0.05" value={ph} onChange={e => setPh(Number(e.target.value))} className="w-full h-2 bg-slate-200 rounded-lg accent-blue-600 mb-2"/>
-              <div className="flex justify-between font-mono font-bold"><span className="text-red-500">Acidosis (6.9)</span><span className="text-slate-800">{ph}</span><span className="text-blue-500">Alkalosis (7.6)</span></div>
-           </div>
-           <div className="bg-blue-50 p-4 rounded-lg text-sm text-slate-700">
-              <p className="font-bold mb-2">H⁺/K⁺ Exchange:</p>
-              <ul className="list-disc ml-4 space-y-1"><li>In Acidosis, high ECF H⁺ drives H⁺ into the cell to be buffered.</li><li>To maintain electroneutrality, K⁺ is extruded.</li><li>Result: Hyperkalaemia.</li></ul>
-           </div>
-        </div>
-        <div className="relative h-[400px] w-full bg-sky-50 rounded-xl border-4 border-sky-100 overflow-hidden shadow-inner">
-           <div className="absolute top-4 left-4 font-bold text-sky-800 uppercase tracking-widest text-xs">Extracellular Fluid</div>
-           <div className="absolute top-1/2 left-0 w-full h-4 bg-yellow-200 border-y-2 border-yellow-400 flex items-center justify-center z-10"><span className="text-[10px] font-bold text-yellow-700 bg-yellow-100 px-2 rounded">Cell Membrane</span></div>
-           <div className="absolute bottom-0 w-full h-[48%] bg-pink-50"><div className="absolute bottom-4 left-4 font-bold text-pink-800 uppercase tracking-widest text-xs">Intracellular Fluid</div></div>
-           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-white rounded-full border-4 border-slate-300 shadow-lg z-20 flex flex-col items-center justify-center text-xs font-bold">
-              <div className="flex gap-2 items-center text-red-600 animate-pulse"><ArrowRight size={14} className="rotate-90"/> H⁺</div>
-              <div className="w-full h-px bg-slate-200 my-1"></div>
-              <div className="flex gap-2 items-center text-yellow-600 animate-pulse"><ArrowRight size={14} className="-rotate-90"/> K⁺</div>
-           </div>
-           <div className="absolute top-20 left-20 text-xl font-bold text-yellow-600 transition-all duration-500" style={{ transform: `scale(${k_ecf/4})` }}>[K⁺] {k_ecf.toFixed(1)}</div>
-           <div className="absolute top-20 right-20 text-xl font-bold text-red-600 transition-all duration-500" style={{ opacity: (7.45 - ph) * 2 }}>H⁺ (High)</div>
-        </div>
-     </div>
-  );
-};
-
-// --- COMPONENT: Comparator ---
-const ComparatorView = () => {
-  const [fluidA, setFluidA] = useState<FluidType>('saline');
-  const [fluidB, setFluidB] = useState<FluidType>('plasmalyte');
-
-  // Simulated Trajectory
-  const trajectory = useMemo(() => {
-     const steps = [];
-     let phA = 7.4, phB = 7.4;
-     for (let t=0; t<=120; t+=10) {
-        if (fluidA === 'saline') phA -= 0.005;
-        if (fluidA === 'bicarb_dex') phA += 0.008;
-        if (fluidB === 'plasmalyte' || fluidB === 'hartmanns') phB += 0.0001; 
-        steps.push({ t, phA, phB });
-     }
-     return steps;
-  }, [fluidA, fluidB]);
-
-  return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-       <div className="flex gap-4">
-          <div className="flex-1 bg-white p-4 rounded border-l-4 border-blue-500 shadow-sm"><select value={fluidA} onChange={e => setFluidA(e.target.value as FluidType)} className="w-full font-bold text-blue-800">{Object.entries(FLUIDS).map(([k,v]) => <option key={k} value={k}>{v.name}</option>)}</select></div>
-          <div className="flex items-center text-slate-400 font-bold">VS</div>
-          <div className="flex-1 bg-white p-4 rounded border-l-4 border-green-500 shadow-sm"><select value={fluidB} onChange={e => setFluidB(e.target.value as FluidType)} className="w-full font-bold text-green-800">{Object.entries(FLUIDS).map(([k,v]) => <option key={k} value={k}>{v.name}</option>)}</select></div>
-       </div>
-       <div className="bg-white p-6 rounded-xl border border-slate-200">
-          <h3 className="font-bold text-slate-700 mb-6">pH Trend (2 Hours)</h3>
-          <div className="h-64 flex items-end gap-2 relative border-l border-b border-slate-300 pl-2 pb-2">
-             {trajectory.map((pt, i) => (
-                <div key={i} className="flex-1 flex flex-col justify-end h-full gap-1 relative"><div className="w-3 bg-blue-500 rounded-full absolute transition-all" style={{ bottom: `${(pt.phA - 7.2) * 400}px`, left: '20%' }} /><div className="w-3 bg-green-500 rounded-full absolute transition-all" style={{ bottom: `${(pt.phB - 7.2) * 400}px`, right: '20%' }} /></div>
-             ))}
-             <div className="absolute w-full border-t border-dashed border-slate-400" style={{ bottom: `${(7.4 - 7.2) * 400}px` }}><span className="text-xs bg-white text-slate-500 px-1 absolute -top-2 right-0">pH 7.40</span></div>
-          </div>
-       </div>
-    </div>
-  );
-};
-
-// --- COMPONENT: Cases ---
-const CaseSimulator = () => {
-  const [scenario, setScenario] = useState('sepsis');
-  const [status, setStatus] = useState({ map: 55, hr: 120, ph: 7.25, fluidGiven: 0, lungs: 'Clear' });
-  const [msg, setMsg] = useState("");
-
-  const treat = (action: string) => {
-     let s = { ...status };
-     let m = "";
-     if (action === 'fluid') {
-        s.fluidGiven += 0.5;
-        if (scenario === 'sepsis') {
-            s.map += 5; s.hr -= 5;
-            if (s.fluidGiven > 2.5) { s.lungs = 'Crackles'; m = "Warning: Pulmonary Edema!"; }
-            else m = "BP improved slightly. Tachycardia improving.";
-        } else if (scenario === 'dka') {
-            s.ph += 0.05; s.hr -= 10; s.map += 2; m = "Acidosis resolving.";
-        }
-     } else if (action === 'norad') {
-         if (s.fluidGiven < 1 && scenario !== 'dka') { s.map += 15; m = "BP up, but organs poorly perfused."; }
-         else { s.map += 10; m = "Vasopressor effective."; }
-     }
-     setStatus(s); setMsg(m);
-  };
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
-       <div className="space-y-4">
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-             <div className="flex gap-2"><button onClick={() => setScenario('sepsis')} className={`flex-1 py-2 rounded font-bold ${scenario==='sepsis'?'bg-red-100 text-red-800':'bg-slate-100'}`}>Septic Shock</button><button onClick={() => setScenario('dka')} className={`flex-1 py-2 rounded font-bold ${scenario==='dka'?'bg-purple-100 text-purple-800':'bg-slate-100'}`}>DKA</button></div>
-          </div>
-          <div className="bg-slate-800 text-white p-6 rounded-xl space-y-4">
-             <div className="flex items-center gap-4"><Activity className="text-green-400" /><div><div className="text-xs text-slate-400 uppercase">HR</div><div className="text-2xl font-mono font-bold">{status.hr}</div></div></div>
-             <div className="flex items-center gap-4"><Stethoscope className="text-blue-400" /><div><div className="text-xs text-slate-400 uppercase">MAP</div><div className="text-2xl font-mono font-bold">{status.map}</div></div></div>
-             <div className="flex items-center gap-4"><Thermometer className="text-yellow-400" /><div><div className="text-xs text-slate-400 uppercase">Lungs</div><div className={`text-xl font-bold ${status.lungs === 'Crackles' ? 'text-red-400 animate-pulse' : 'text-white'}`}>{status.lungs}</div></div></div>
-          </div>
-       </div>
-       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
-          <div><h3 className="font-bold text-slate-800 mb-4">Interventions</h3><div className="grid grid-cols-2 gap-3"><button onClick={() => treat('fluid')} className="p-3 bg-blue-100 text-blue-800 rounded font-bold flex flex-col items-center"><Droplet size={20}/> 500ml Fluid</button><button onClick={() => treat('norad')} className="p-3 bg-amber-100 text-amber-800 rounded font-bold flex flex-col items-center"><Zap size={20}/> Noradrenaline</button></div></div>
-          <div className="mt-6 bg-slate-50 p-4 rounded border border-slate-200"><h4 className="text-xs font-bold text-slate-400 uppercase mb-2">Log</h4><p className="text-sm font-medium text-slate-800">{msg || "Awaiting orders."}</p></div>
-       </div>
-    </div>
-  );
-};
-
-// --- COMPONENT: Starling ---
-const FrankStarlingSimulator = () => {
-    const [preload, setPreload] = useState(10);
-    const [inotropy, setInotropy] = useState(1.0);
-    const maxSV = 100 * inotropy; 
-    const currentSV = maxSV * (1 - Math.exp(-0.1 * preload));
-
-    const generatePath = () => {
-        let d = "M 0 300 ";
-        for (let x = 0; x <= 30; x += 0.5) { d += `L ${x * 20} ${300 - ((maxSV * (1 - Math.exp(-0.1 * x))) * 2.5)} `; }
-        return d;
-    };
-
-    return (
-       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-           <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-6">
-               <div><label className="text-xs font-bold text-slate-500 uppercase">Preload</label><input type="range" min="0" max="30" value={preload} onChange={e=>setPreload(Number(e.target.value))} className="w-full h-2 bg-blue-100 rounded-lg accent-blue-600"/></div>
-               <div><label className="text-xs font-bold text-slate-500 uppercase">Inotropy</label><input type="range" min="0.5" max="2.0" step="0.1" value={inotropy} onChange={e=>setInotropy(Number(e.target.value))} className="w-full h-2 bg-green-100 rounded-lg accent-green-600"/></div>
-               <div className="bg-slate-50 p-3 rounded text-center"><span className="text-xs text-slate-400 uppercase block">Stroke Volume</span><span className="font-mono font-bold text-xl text-pink-600">{currentSV.toFixed(1)} mL</span></div>
-           </div>
-           <div className="md:col-span-2 bg-white p-4 rounded-xl border border-slate-200 h-[300px]">
-               <svg viewBox="0 0 650 300" className="w-full h-full overflow-visible">
-                   <defs><pattern id="g" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="#f1f5f9"/></pattern></defs>
-                   <rect width="650" height="300" fill="url(#g)" />
-                   <path d={generatePath()} fill="none" stroke="#db2777" strokeWidth="4" strokeLinecap="round"/>
-                   <circle cx={preload * 20} cy={300 - (currentSV * 2.5)} r="8" fill="white" stroke="#2563eb" strokeWidth="3" />
-               </svg>
-           </div>
-       </div>
-    );
-};
-
-// --- MAIN APP SHELL ---
-const App = () => {
-  const [view, setView] = useState<TabView>('stewart');
-
-  const tabs: {id: TabView, label: string, icon: any}[] = [
-      { id: 'stewart', label: 'Stewart & SID', icon: Beaker },
-      { id: 'starling', label: 'Haemodynamics', icon: HeartPulse },
-      { id: 'micro', label: 'Micro', icon: Zap },
-      { id: 'comparator', label: 'Compare', icon: GitCompare },
-      { id: 'cases', label: 'Cases', icon: UserCheck },
-  ];
-
-  return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 p-4 md:p-6 pb-20">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <header className="flex flex-col md:flex-row justify-between items-center border-b border-slate-200 pb-4 gap-4">
-           <div><h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><Activity className="text-blue-600"/> Physiology Sandbox</h1></div>
-           <div className="flex flex-wrap gap-2 justify-center">
-              {tabs.map(t => (
-                  <button key={t.id} onClick={() => setView(t.id)} className={`px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${view === t.id ? 'bg-slate-800 text-white shadow-lg' : 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200'}`}>
-                     <t.icon size={16}/> {t.label}
-                  </button>
-              ))}
-           </div>
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-center border-b border-slate-200 pb-4 gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="activity" class="text-blue-600"></i> Physiology Sandbox <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded ml-2">Advanced</span>
+                </h1>
+                <p class="text-sm text-slate-500">Fluid Kinetics, SID, Lactate & Haemodynamics</p>
+            </div>
+            
+            <div class="flex flex-wrap gap-2 justify-center" id="nav-container">
+                <button onclick="switchTab('stewart')" id="tab-stewart" class="nav-btn px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all bg-slate-800 text-white shadow-lg"><i data-lucide="beaker" size="16"></i> Stewart & SID</button>
+                <button onclick="switchTab('starling')" id="tab-starling" class="nav-btn px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all bg-white text-slate-500 hover:bg-slate-100 border border-slate-200"><i data-lucide="heart-pulse" size="16"></i> Haemodynamics</button>
+                <button onclick="switchTab('micro')" id="tab-micro" class="nav-btn px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all bg-white text-slate-500 hover:bg-slate-100 border border-slate-200"><i data-lucide="zap" size="16"></i> Micro</button>
+                <button onclick="switchTab('comparator')" id="tab-comparator" class="nav-btn px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all bg-white text-slate-500 hover:bg-slate-100 border border-slate-200"><i data-lucide="git-compare" size="16"></i> Compare</button>
+                <button onclick="switchTab('cases')" id="tab-cases" class="nav-btn px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all bg-white text-slate-500 hover:bg-slate-100 border border-slate-200"><i data-lucide="user-check" size="16"></i> Cases</button>
+            </div>
         </header>
-        <main className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {view === 'stewart' && <StewartSimulator />}
-            {view === 'micro' && <CellularView />}
-            {view === 'starling' && <FrankStarlingSimulator />}
-            {view === 'comparator' && <ComparatorView />}
-            {view === 'cases' && <CaseSimulator />}
-        </main>
-      </div>
-    </div>
-  );
-};
 
-export default App;
+        <main id="main-content" class="fade-in">
+            <!-- TAB: Stewart & SID -->
+            <div id="view-stewart" class="view-section grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Left Controls -->
+                <div class="lg:col-span-3 space-y-4">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-4">
+                        <h3 class="font-bold text-slate-700 uppercase text-xs tracking-wider">Infusion Protocol</h3>
+                        <select id="fluid-select" class="w-full p-2 border rounded text-sm font-semibold bg-white"></select>
+                        
+                        <!-- Lactate Slider (New) -->
+                        <div>
+                            <div class="flex justify-between text-xs font-bold text-slate-500 mb-1">
+                                <span>Initial Lactate</span>
+                                <span id="lac-val">1.0</span>
+                            </div>
+                            <input type="range" id="lactate-slider" min="0.5" max="15.0" step="0.5" value="1.0" class="w-full h-2 bg-orange-100 rounded-lg text-orange-500">
+                        </div>
+
+                        <div class="flex items-center gap-2 text-sm pt-2">
+                            <span class="font-semibold text-xs">Sepsis Mode</span>
+                            <button id="sepsis-toggle" onclick="toggleSepsis()" class="w-10 h-5 rounded-full transition-colors relative bg-slate-300">
+                                <div id="sepsis-indicator" class="absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-all"></div>
+                            </button>
+                        </div>
+
+                        <div class="flex gap-2">
+                            <button id="play-btn" onclick="togglePlay()" class="flex-1 py-2 rounded bg-blue-600 text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-blue-700 transition"><i data-lucide="play" size="16"></i> Infuse</button>
+                            <button onclick="resetStewart()" class="p-2 bg-slate-100 rounded hover:bg-slate-200 text-slate-600"><i data-lucide="rotate-ccw" size="18"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- Stats -->
+                    <div class="bg-slate-800 text-white p-4 rounded-xl space-y-3 text-sm">
+                        <div class="flex justify-between border-b border-slate-600 pb-2"><span>pH</span><span id="stat-ph" class="font-mono font-bold text-lg text-green-400">7.40</span></div>
+                        <div class="flex justify-between"><span>Base Excess</span><span id="stat-be" class="font-mono font-bold">0.0</span></div>
+                        <div class="flex justify-between"><span>SID (mEq/L)</span><span id="stat-sid" class="font-mono font-bold">40.0</span></div>
+                        <div class="flex justify-between"><span>Lactate</span><span id="stat-lac" class="font-mono font-bold text-orange-400">1.0</span></div>
+                        <div class="flex justify-between"><span>HCO3</span><span id="stat-hco3" class="font-mono font-bold text-green-400">24.0</span></div>
+                    </div>
+
+                    <!-- Volume Buckets -->
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 h-40 flex items-end justify-center gap-2 relative">
+                        <div class="absolute top-2 left-2 text-[10px] font-bold text-slate-400 uppercase">Volume Status</div>
+                        <div class="w-1/3 bg-red-100 rounded-t h-full flex items-end relative overflow-hidden"><div id="bar-plasma" class="w-full bg-red-500 bar-transition" style="height: 20%;"></div><div class="absolute bottom-1 left-0 w-full text-center text-[10px] font-bold text-white mix-blend-difference z-10">Plasma</div></div>
+                        <div class="w-1/3 bg-blue-100 rounded-t h-full flex items-end relative overflow-hidden"><div id="bar-edema" class="w-full bg-blue-400 bar-transition" style="height: 30%;"></div><div class="absolute bottom-1 left-0 w-full text-center text-[10px] font-bold text-white mix-blend-difference z-10">Edema</div></div>
+                        <div class="w-1/3 bg-yellow-50 rounded-t h-full flex items-end border border-yellow-100 relative overflow-hidden"><div id="bar-urine" class="w-full bg-yellow-400 bar-transition" style="height: 0%;"></div><div class="absolute bottom-1 left-0 w-full text-center text-[10px] font-bold text-yellow-800 z-10">Urine</div></div>
+                    </div>
+                </div>
+
+                <!-- Gamblegram -->
+                <div class="lg:col-span-9 bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col relative overflow-hidden h-[600px]">
+                    <h2 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2 border-b pb-2"><i data-lucide="beaker" class="text-blue-600"></i> Gamblegram: SID & Anion Gap</h2>
+                    <div class="flex-1 flex items-end justify-center gap-12 select-none pb-8 overflow-x-auto custom-scrollbar">
+                        <!-- CATIONS -->
+                        <div class="w-32 flex flex-col shadow-2xl shadow-slate-200 group relative">
+                            <div class="absolute -top-8 w-full text-center font-bold text-slate-400 text-xs uppercase tracking-wider">Cations</div>
+                            <div id="gamble-cations-top" class="bg-amber-300 w-full flex items-center justify-center text-xs font-bold text-amber-900 border-b border-white/20 bar-transition" style="height: 20px;">Mg/Ca/K</div>
+                            <div id="gamble-na" class="bg-red-500 w-full flex items-center justify-center text-white font-bold rounded-b-lg text-xl bar-transition" style="height: 420px;">Na⁺<span id="val-na" class="text-xs ml-1 opacity-70 font-normal">140</span></div>
+                        </div>
+                        <!-- ANIONS -->
+                        <div class="w-32 flex flex-col shadow-2xl shadow-slate-200 relative justify-end h-full">
+                            <div class="absolute -top-8 w-full text-center font-bold text-slate-400 text-xs uppercase tracking-wider">Anions</div>
+                            <div class="flex flex-col w-full justify-end h-full">
+                                <!-- Albumin -->
+                                <div id="gamble-alb" class="bg-purple-400 w-full flex flex-col items-center justify-center text-xs font-bold text-white border-b border-white/20 bar-transition overflow-hidden" style="height: 33px;"><span>A⁻ (Alb)</span></div>
+                                <!-- Lactate (NEW) -->
+                                <div id="gamble-lac" class="bg-orange-500 w-full flex flex-col items-center justify-center text-white font-bold border-b border-white/20 bar-transition overflow-hidden" style="height: 3px;">
+                                    <span class="text-[10px]">Lac</span>
+                                </div>
+                                <!-- HCO3 -->
+                                <div id="gamble-hco3" class="bg-green-500 w-full flex flex-col items-center justify-center text-white font-bold border-b border-white/20 relative bar-transition overflow-visible" style="height: 72px;">
+                                    <span class="text-xl">HCO₃⁻</span>
+                                    <span id="val-hco3" class="text-xs opacity-80">24.0</span>
+                                    <!-- SID Bracket -->
+                                    <div id="sid-bracket" class="absolute -right-6 top-0 border-r-4 border-slate-400 border-t-4 border-b-4 rounded-r-lg" style="height: 105px; top: -33px; width: 12px;"></div>
+                                    <div id="sid-label" class="absolute -right-24 top-0 text-sm font-bold text-slate-500" style="top: -16px;">SID (40)</div>
+                                </div>
+                                <!-- Chloride -->
+                                <div id="gamble-cl" class="bg-blue-500 w-full flex items-center justify-center text-white font-bold rounded-b-lg text-xl bar-transition" style="height: 300px;">Cl⁻<span id="val-cl" class="text-xs ml-1 opacity-70 font-normal">100</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-lg text-sm text-slate-600 border border-slate-200 mt-4">
+                        <p class="font-bold mb-1">Advanced Concept: Unmeasured Anions</p>
+                        <p>In this view, the <span class="text-orange-600 font-bold">Orange Bar</span> represents Lactate. Notice how elevating lactate (using the slider) physically occupies space in the anion column, forcing HCO₃⁻ down (Metabolic Acidosis) while the SID remains constant. This simulates the "Anion Gap".</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: Haemodynamics (Starling) -->
+            <div id="view-starling" class="view-section hidden grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-6">
+                    <div><label class="text-xs font-bold text-slate-500 uppercase">Preload</label><input type="range" id="starling-preload" min="0" max="30" value="10" class="w-full h-2 bg-blue-100 rounded-lg text-blue-600"></div>
+                    <div><label class="text-xs font-bold text-slate-500 uppercase">Inotropy</label><input type="range" id="starling-inotropy" min="0.5" max="2.0" step="0.1" value="1.0" class="w-full h-2 bg-green-100 rounded-lg text-green-600"></div>
+                    <div class="bg-slate-50 p-3 rounded text-center border border-slate-100"><span class="text-xs text-slate-400 uppercase block">Stroke Volume</span><span id="starling-sv-display" class="font-mono font-bold text-xl text-pink-600">63.2 mL</span></div>
+                </div>
+                <div class="md:col-span-2 bg-white p-4 rounded-xl border border-slate-200 h-[300px]">
+                    <svg viewBox="0 0 650 300" class="w-full h-full overflow-visible">
+                        <defs><pattern id="g" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="#f1f5f9"/></pattern></defs>
+                        <rect width="650" height="300" fill="url(#g)" />
+                        <text x="325" y="330" text-anchor="middle" class="text-xs font-bold fill-slate-400">PRELOAD</text>
+                        <text x="-150" y="20" transform="rotate(-90)" text-anchor="middle" class="text-xs font-bold fill-slate-400">STROKE VOLUME</text>
+                        <path id="starling-curve" fill="none" stroke="#db2777" stroke-width="4" stroke-linecap="round"></path>
+                        <circle id="starling-point" r="8" fill="white" stroke="#2563eb" stroke-width="3"></circle>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- TAB: Micro -->
+            <div id="view-micro" class="view-section hidden grid grid-cols-1 md:grid-cols-2 gap-8 items-center h-full max-w-4xl mx-auto">
+                <div class="space-y-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <h3 class="font-bold text-slate-800 mb-4">Extracellular pH</h3>
+                        <input type="range" id="micro-ph-slider" min="6.9" max="7.6" step="0.05" value="7.4" class="w-full h-2 bg-slate-200 rounded-lg text-blue-600 mb-2">
+                        <div class="flex justify-between font-mono font-bold"><span class="text-red-500">Acidosis (6.9)</span><span id="micro-ph-val" class="text-slate-800">7.4</span><span class="text-blue-500">Alkalosis (7.6)</span></div>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-lg text-sm text-slate-700">
+                        <p class="font-bold mb-2">H⁺/K⁺ Exchange:</p>
+                        <ul class="list-disc ml-4 space-y-1"><li>In Acidosis, high ECF H⁺ drives H⁺ into the cell to be buffered.</li><li>To maintain electroneutrality, K⁺ is extruded.</li><li>Result: Hyperkalaemia.</li></ul>
+                    </div>
+                </div>
+                <div class="relative h-[400px] w-full bg-sky-50 rounded-xl border-4 border-sky-100 overflow-hidden shadow-inner">
+                    <div class="absolute top-4 left-4 font-bold text-sky-800 uppercase tracking-widest text-xs">Extracellular Fluid</div>
+                    <div class="absolute top-1/2 left-0 w-full h-4 bg-yellow-200 border-y-2 border-yellow-400 flex items-center justify-center z-10"><span class="text-[10px] font-bold text-yellow-700 bg-yellow-100 px-2 rounded">Cell Membrane</span></div>
+                    <div class="absolute bottom-0 w-full h-[48%] bg-pink-50"><div class="absolute bottom-4 left-4 font-bold text-pink-800 uppercase tracking-widest text-xs">Intracellular Fluid</div></div>
+                    <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-white rounded-full border-4 border-slate-300 shadow-lg z-20 flex flex-col items-center justify-center text-xs font-bold">
+                        <div class="flex gap-2 items-center text-red-600 animate-pulse mb-1"><i data-lucide="arrow-right" class="rotate-90" size="14"></i> H⁺</div>
+                        <div class="w-full h-px bg-slate-200 my-1"></div>
+                        <div class="flex gap-2 items-center text-yellow-600 animate-pulse mt-1"><i data-lucide="arrow-right" class="-rotate-90" size="14"></i> K⁺</div>
+                    </div>
+                    <div id="micro-k-ecf" class="absolute top-20 left-20 text-xl font-bold text-yellow-600 transition-all duration-500">[K⁺] 4.0</div>
+                    <div id="micro-h-ecf" class="absolute top-20 right-20 text-xl font-bold text-red-600 transition-all duration-500 opacity-0">H⁺ (High)</div>
+                </div>
+            </div>
+
+            <!-- TAB: Comparator -->
+            <div id="view-comparator" class="view-section hidden space-y-6 max-w-4xl mx-auto">
+                <div class="flex gap-4">
+                    <div class="flex-1 bg-white p-4 rounded border-l-4 border-blue-500 shadow-sm"><select id="comp-select-a" class="w-full font-bold text-blue-800 bg-white p-2"></select></div>
+                    <div class="flex items-center text-slate-400 font-bold">VS</div>
+                    <div class="flex-1 bg-white p-4 rounded border-l-4 border-green-500 shadow-sm"><select id="comp-select-b" class="w-full font-bold text-green-800 bg-white p-2"></select></div>
+                </div>
+                <div class="bg-white p-6 rounded-xl border border-slate-200">
+                    <h3 class="font-bold text-slate-700 mb-6">pH Trend (2 Hours)</h3>
+                    <div class="h-64 w-full relative">
+                        <svg id="comp-chart" viewBox="0 0 800 300" class="w-full h-full border-l border-b border-slate-300 overflow-visible">
+                             <line x1="0" y1="150" x2="800" y2="150" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4"/>
+                             <text x="805" y="150" class="text-xs fill-slate-500" alignment-baseline="middle">pH 7.4</text>
+                             <path id="comp-line-a" fill="none" stroke="#3b82f6" stroke-width="3"></path>
+                             <path id="comp-line-b" fill="none" stroke="#22c55e" stroke-width="3"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: Cases -->
+            <div id="view-cases" class="view-section hidden grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+                <div class="space-y-4">
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <div class="flex gap-2">
+                            <button onclick="setCase('sepsis')" id="case-sepsis" class="flex-1 py-2 rounded font-bold bg-red-100 text-red-800 ring-2 ring-red-500">Septic Shock</button>
+                            <button onclick="setCase('dka')" id="case-dka" class="flex-1 py-2 rounded font-bold bg-slate-100 text-slate-600">DKA</button>
+                        </div>
+                    </div>
+                    <div class="bg-slate-800 text-white p-6 rounded-xl space-y-4">
+                        <div class="flex items-center gap-4"><i data-lucide="activity" class="text-green-400"></i><div><div class="text-xs text-slate-400 uppercase">HR</div><div id="case-hr" class="text-2xl font-mono font-bold">120</div></div></div>
+                        <div class="flex items-center gap-4"><i data-lucide="stethoscope" class="text-blue-400"></i><div><div class="text-xs text-slate-400 uppercase">MAP</div><div id="case-map" class="text-2xl font-mono font-bold">55</div></div></div>
+                        <div class="flex items-center gap-4"><i data-lucide="thermometer" class="text-yellow-400"></i><div><div class="text-xs text-slate-400 uppercase">Lungs</div><div id="case-lungs" class="text-xl font-bold text-white">Clear</div></div></div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <h3 class="font-bold text-slate-800 mb-4">Interventions</h3>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button onclick="treatCase('fluid')" class="p-3 bg-blue-100 text-blue-800 rounded font-bold flex flex-col items-center hover:bg-blue-200 transition"><i data-lucide="droplet" size="20" class="mb-1"></i> 500ml Fluid</button>
+                            <button onclick="treatCase('norad')" class="p-3 bg-amber-100 text-amber-800 rounded font-bold flex flex-col items-center hover:bg-amber-200 transition"><i data-lucide="zap" size="20" class="mb-1"></i> Noradrenaline</button>
+                        </div>
+                    </div>
+                    <div class="mt-6 bg-slate-50 p-4 rounded border border-slate-200">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase mb-2">Log</h4>
+                        <p id="case-log" class="text-sm font-medium text-slate-800">Awaiting orders.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const FLUIDS = {
+            saline: { name: "0.9% Saline", na: 154, cl: 154, k: 0, albuminContent: 0, osm: 308, distribution: 'ecf' },
+            hartmanns: { name: "Hartmann's", na: 131, cl: 111, k: 5, albuminContent: 0, osm: 274, distribution: 'ecf' },
+            plasmalyte: { name: "Plasma-Lyte 148", na: 140, cl: 98, k: 5, albuminContent: 0, osm: 295, distribution: 'ecf' },
+            albumin4: { name: "Albumin 4%", na: 140, cl: 128, k: 0, albuminContent: 40, osm: 290, distribution: 'plasma' },
+            albumin20: { name: "Albumin 20%", na: 140, cl: 120, k: 0, albuminContent: 200, osm: 310, distribution: 'plasma_expand' },
+            bicarb_dex: { name: "NaHCO3 + D5W", na: 140, cl: 0, k: 0, albuminContent: 0, osm: 550, distribution: 'tbw' },
+            mannitol: { name: "Mannitol 20%", na: 0, cl: 0, k: 0, albuminContent: 0, osm: 1098, distribution: 'ecf' }
+        };
+
+        const BASE_NA = 140, BASE_CL = 100, BASE_K = 4.0, BASE_ALB = 40, BASE_PV = 3.5, BASE_ISF = 10.5, BASE_ECF = 14;
+        const SCALE = 3.0; 
+
+        let state = {
+            currentTab: 'stewart',
+            selectedFluid: 'saline',
+            isPlaying: false,
+            sepsisMode: false,
+            sim: {
+                plasma: 0, isf: 0, urine: 0,
+                na: BASE_NA, cl: BASE_CL, k: BASE_K, hco3: 24, alb: BASE_ALB, lac: 1.0,
+                ph: 7.4, sid: 40, be: 0
+            },
+            case: { type: 'sepsis', hr: 120, map: 55, lungs: 'Clear', fluidGiven: 0 }
+        };
+
+        let simInterval;
+
+        window.onload = function() {
+            lucide.createIcons();
+            populateFluidSelects();
+            renderStewartUI();
+            updateMicroUI();
+            updateStarlingUI();
+            updateComparatorUI();
+            updateCaseUI();
+            
+            // Lactate slider listener
+            document.getElementById('lactate-slider').oninput = (e) => {
+                state.sim.lac = parseFloat(e.target.value);
+                document.getElementById('lac-val').innerText = state.sim.lac.toFixed(1);
+                recalcPhysics(); // Immediate update on slide
+                renderStewartUI();
+            };
+        };
+
+        function populateFluidSelects() {
+            const opts = Object.entries(FLUIDS).map(([k,v]) => `<option value="${k}">${v.name}</option>`).join('');
+            document.getElementById('fluid-select').innerHTML = opts;
+            document.getElementById('comp-select-a').innerHTML = opts;
+            document.getElementById('comp-select-b').innerHTML = opts;
+            document.getElementById('comp-select-b').value = 'plasmalyte';
+            document.getElementById('fluid-select').onchange = (e) => { state.selectedFluid = e.target.value; resetStewart(); };
+            document.getElementById('comp-select-a').onchange = updateComparatorUI;
+            document.getElementById('comp-select-b').onchange = updateComparatorUI;
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`view-${tab}`).classList.remove('hidden');
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.className = "nav-btn px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all bg-white text-slate-500 hover:bg-slate-100 border border-slate-200");
+            document.getElementById(`tab-${tab}`).className = "nav-btn px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all bg-slate-800 text-white shadow-lg";
+            state.currentTab = tab;
+        }
+
+        function togglePlay() {
+            state.isPlaying = !state.isPlaying;
+            const btn = document.getElementById('play-btn');
+            if (state.isPlaying) {
+                btn.innerHTML = '<i data-lucide="pause" size="16"></i> Pause';
+                btn.classList.add('bg-amber-500'); btn.classList.remove('bg-blue-600');
+                simInterval = setInterval(runSimLoop, 50);
+            } else {
+                btn.innerHTML = '<i data-lucide="play" size="16"></i> Infuse';
+                btn.classList.remove('bg-amber-500'); btn.classList.add('bg-blue-600');
+                clearInterval(simInterval);
+            }
+            lucide.createIcons();
+        }
+
+        function toggleSepsis() {
+            state.sepsisMode = !state.sepsisMode;
+            const toggle = document.getElementById('sepsis-toggle');
+            const dot = document.getElementById('sepsis-indicator');
+            if (state.sepsisMode) {
+                toggle.classList.remove('bg-slate-300'); toggle.classList.add('bg-red-500');
+                dot.style.transform = 'translateX(20px)';
+            } else {
+                toggle.classList.add('bg-slate-300'); toggle.classList.remove('bg-red-500');
+                dot.style.transform = 'translateX(0)';
+            }
+        }
+
+        function resetStewart() {
+            state.isPlaying = false;
+            clearInterval(simInterval);
+            const btn = document.getElementById('play-btn');
+            btn.innerHTML = '<i data-lucide="play" size="16"></i> Infuse';
+            btn.classList.remove('bg-amber-500'); btn.classList.add('bg-blue-600');
+            
+            // Reset logic
+            const currentLac = parseFloat(document.getElementById('lactate-slider').value);
+            state.sim = {
+                plasma: 0, isf: 0, urine: 0,
+                na: BASE_NA, cl: BASE_CL, k: BASE_K, hco3: 24, alb: BASE_ALB, lac: currentLac,
+                ph: 7.4, sid: 40, be: 0
+            };
+            recalcPhysics(); // Ensure initial state is valid based on lactate
+            renderStewartUI();
+            lucide.createIcons();
+        }
+
+        function runSimLoop() {
+            const fluid = FLUIDS[state.selectedFluid];
+            const dt = 0.5; 
+            const infusionRate = 0.033;
+            const infused = infusionRate * dt;
+            state.sim.plasma += infused;
+
+            const leakRate = state.sepsisMode ? 0.45 : 0.15;
+            if (fluid.distribution === 'ecf') {
+                const grad = (state.sim.plasma / BASE_PV) - (state.sim.isf / BASE_ISF);
+                if (grad > 0) { const flux = grad * leakRate * dt; state.sim.plasma -= flux; state.sim.isf += flux; }
+            } else if (fluid.distribution === 'plasma_expand') {
+                if (state.sim.isf > -2) { const pull = 0.05 * dt; state.sim.plasma += pull; state.sim.isf -= pull; }
+            }
+
+            const volStatus = state.sim.plasma / BASE_PV;
+            const urine = (volStatus > 0.2 ? 0.01 : 0.001) * dt;
+            state.sim.plasma -= urine;
+            state.sim.urine += urine;
+
+            const totalVol = state.sim.plasma + state.sim.isf + BASE_ECF;
+            const mix = 0.1;
+            state.sim.na += (fluid.na - state.sim.na) * (infused/totalVol) * mix;
+            state.sim.cl += (fluid.cl - state.sim.cl) * (infused/totalVol) * mix;
+            state.sim.alb += (fluid.albuminContent - state.sim.alb) * (infused/totalVol) * mix;
+
+            recalcPhysics();
+            renderStewartUI();
+        }
+
+        function recalcPhysics() {
+            const strongCat = state.sim.na + 4.4 + 2.2; 
+            state.sim.sid = strongCat - state.sim.cl - state.sim.lac; // Lactate reduces SID!
+            const atot = state.sim.alb * 0.28;
+            state.sim.hco3 = Math.max(0, state.sim.sid - atot);
+            state.sim.ph = 6.1 + Math.log10(state.sim.hco3 / 1.2);
+            // Simple BE approx: HCO3 - 24 + 10*(pH - 7.4)
+            state.sim.be = (state.sim.hco3 - 24.4) + (14.8 * (state.sim.ph - 7.4));
+        }
+
+        function renderStewartUI() {
+            const s = state.sim;
+            document.getElementById('stat-ph').innerText = s.ph.toFixed(2);
+            document.getElementById('stat-ph').className = `font-mono font-bold text-lg ${s.ph < 7.35 ? 'text-red-400' : 'text-green-400'}`;
+            document.getElementById('stat-sid').innerText = s.sid.toFixed(1);
+            document.getElementById('stat-hco3').innerText = s.hco3.toFixed(1);
+            document.getElementById('stat-lac').innerText = s.lac.toFixed(1);
+            document.getElementById('stat-be').innerText = (s.be > 0 ? "+" : "") + s.be.toFixed(1);
+            document.getElementById('stat-be').className = `font-mono font-bold ${s.be < -2 ? 'text-red-400' : s.be > 2 ? 'text-blue-400' : 'text-slate-200'}`;
+
+            document.getElementById('bar-plasma').style.height = `${20 + (s.plasma/3)*80}%`;
+            document.getElementById('bar-edema').style.height = `${30 + (s.isf/5)*70}%`;
+            document.getElementById('bar-urine').style.height = `${(s.urine/2)*100}%`;
+
+            const h_na = s.na * SCALE;
+            const h_cl = s.cl * SCALE;
+            const h_alb = (s.alb * 0.28) * SCALE;
+            const h_lac = s.lac * SCALE; // Visualise Lactate
+            const h_hco3 = s.hco3 * SCALE;
+            const h_sid = (s.hco3 + (s.alb*0.28)) * SCALE;
+            
+            document.getElementById('gamble-na').style.height = `${h_na}px`;
+            document.getElementById('val-na').innerText = s.na.toFixed(0);
+            document.getElementById('gamble-cl').style.height = `${h_cl}px`;
+            document.getElementById('val-cl').innerText = s.cl.toFixed(0);
+            document.getElementById('gamble-alb').style.height = `${h_alb}px`;
+            
+            // Lactate Bar
+            document.getElementById('gamble-lac').style.height = `${Math.max(3, h_lac)}px`;
+            
+            document.getElementById('gamble-hco3').style.height = `${h_hco3}px`;
+            document.getElementById('val-hco3').innerText = s.hco3.toFixed(1);
+
+            document.getElementById('sid-bracket').style.height = `${h_sid}px`;
+            document.getElementById('sid-bracket').style.top = `-${h_alb + Math.max(3, h_lac)}px`;
+            document.getElementById('sid-label').innerText = `SID (${s.sid.toFixed(0)})`;
+            document.getElementById('sid-label').style.top = `-${(h_alb + h_lac)/2 + 8}px`;
+        }
+
+        function updateStarlingUI() {
+            const preload = document.getElementById('starling-preload').value;
+            const inotropy = document.getElementById('starling-inotropy').value;
+            const maxSV = 100 * inotropy;
+            const currentSV = maxSV * (1 - Math.exp(-0.1 * preload));
+            document.getElementById('starling-sv-display').innerText = currentSV.toFixed(1) + " mL";
+            let d = "M 0 300 ";
+            for(let x=0; x<=30; x+=0.5) {
+                const y = maxSV * (1 - Math.exp(-0.1 * x));
+                d += `L ${x*20} ${300 - (y*2.5)} `;
+            }
+            document.getElementById('starling-curve').setAttribute('d', d);
+            const cx = preload * 20; const cy = 300 - (currentSV * 2.5);
+            const pt = document.getElementById('starling-point'); pt.setAttribute('cx', cx); pt.setAttribute('cy', cy);
+        }
+
+        document.getElementById('starling-preload').oninput = updateStarlingUI;
+        document.getElementById('starling-inotropy').oninput = updateStarlingUI;
+        document.getElementById('micro-ph-slider').oninput = updateMicroUI;
+
+        function updateMicroUI() {
+            const ph = parseFloat(document.getElementById('micro-ph-slider').value);
+            document.getElementById('micro-ph-val').innerText = ph.toFixed(2);
+            const k_ecf = 4.0 + (7.4 - ph) * 6;
+            const displayK = Math.max(1.5, Math.min(9.0, k_ecf));
+            const k_label = document.getElementById('micro-k-ecf');
+            k_label.innerText = `[K⁺] ${displayK.toFixed(1)}`;
+            k_label.style.transform = `scale(${displayK/4})`;
+            const h_label = document.getElementById('micro-h-ecf');
+            if (ph < 7.35) { h_label.style.opacity = (7.35 - ph) * 3; h_label.innerText = "H⁺ (High)"; } else { h_label.style.opacity = 0; }
+        }
+
+        function updateComparatorUI() {
+            const fA = FLUIDS[document.getElementById('comp-select-a').value];
+            const fB = FLUIDS[document.getElementById('comp-select-b').value];
+            document.getElementById('comp-line-a').setAttribute('d', generateTrajectoryPath(fA));
+            document.getElementById('comp-line-b').setAttribute('d', generateTrajectoryPath(fB));
+        }
+
+        function generateTrajectoryPath(fluid) {
+            let ph = 7.4; let d = "M 0 150 ";
+            for(let t=0; t<=800; t+=40) {
+                if (fluid.name.includes('Saline')) ph -= 0.01;
+                else if (fluid.name.includes('Bicarb')) ph += 0.015;
+                else if (fluid.name.includes('Hartmann') || fluid.name.includes('Plasma')) ph += 0.001;
+                const y = 150 - (ph - 7.4) * 500; d += `L ${t} ${y} `;
+            }
+            return d;
+        }
+
+        function setCase(scenario) {
+            state.case.type = scenario;
+            document.getElementById('case-sepsis').className = scenario==='sepsis' ? "flex-1 py-2 rounded font-bold bg-red-100 text-red-800 ring-2 ring-red-500" : "flex-1 py-2 rounded font-bold bg-slate-100 text-slate-600";
+            document.getElementById('case-dka').className = scenario==='dka' ? "flex-1 py-2 rounded font-bold bg-purple-100 text-purple-800 ring-2 ring-purple-500" : "flex-1 py-2 rounded font-bold bg-slate-100 text-slate-600";
+            state.case.hr = 120; state.case.map = 55; state.case.lungs = 'Clear'; state.case.fluidGiven = 0;
+            updateCaseUI();
+            document.getElementById('case-log').innerText = scenario === 'sepsis' ? "Patient: 55M, Febrile, Hypotensive." : "Patient: 22F T1DM, Vomiting, Kussmaul breathing.";
+        }
+
+        function treatCase(action) {
+            let msg = "";
+            if (action === 'fluid') {
+                state.case.fluidGiven += 0.5;
+                if (state.case.type === 'sepsis') {
+                    state.case.map += 5; state.case.hr -= 5;
+                    if (state.case.fluidGiven > 2.5) { state.case.lungs = 'Crackles'; msg = "Warning: Pulmonary Edema developing!"; } else { msg = "Fluid bolus given. BP improved slightly."; }
+                } else { state.case.hr -= 10; state.case.map += 2; msg = "Rehydration underway. Heart rate settling."; }
+            } else if (action === 'norad') {
+                if (state.case.fluidGiven < 1 && state.case.type !== 'dka') { state.case.map += 15; msg = "BP up, but organs poorly perfused (vasoconstriction without volume)."; } else { state.case.map += 10; msg = "Vasopressor started. MAP target achieved."; }
+            }
+            updateCaseUI();
+            document.getElementById('case-log').innerText = msg;
+        }
+
+        function updateCaseUI() {
+            document.getElementById('case-hr').innerText = state.case.hr;
+            document.getElementById('case-map').innerText = state.case.map;
+            const lungEl = document.getElementById('case-lungs');
+            lungEl.innerText = state.case.lungs;
+            lungEl.className = `text-xl font-bold ${state.case.lungs === 'Crackles' ? 'text-red-400 animate-pulse' : 'text-white'}`;
+        }
+    </script>
+</body>
+</html>
 
