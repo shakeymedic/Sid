@@ -1,937 +1,1588 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Physiology Sandbox: Advanced Stewart Model</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        .bar-transition { transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
-        .fade-in { animation: fadeIn 0.5s ease-in; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .custom-scrollbar::-webkit-scrollbar { height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        
-        /* Custom Range Slider Styling */
-        input[type=range] { -webkit-appearance: none; background: transparent; }
-        input[type=range]:focus { outline: none; }
-        input[type=range]::-webkit-slider-thumb { 
-            -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%; 
-            background: white; border: 2px solid currentColor; 
-            cursor: pointer; margin-top: -7px; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
-        }
-        input[type=range]::-webkit-slider-runnable-track { 
-            width: 100%; height: 4px; cursor: pointer; 
-            background: #e2e8f0; border-radius: 2px; 
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Acid–Base &amp; Fluids Sandbox: Stewart, SID and Traditional Approaches</title>
+<meta name="description" content="An emergency-medicine teaching site on acid–base analysis (traditional, base excess and Stewart physicochemical approaches), strong ion difference, intravenous fluids, an interactive calculator, simulators, worked cases and a quiz. Educational use only.">
+<style>
+:root{
+  --bg:#f8fafc; --surface:#ffffff; --surface-2:#f1f5f9; --surface-3:#e2e8f0;
+  --text:#0f172a; --muted:#475569; --faint:#64748b; --border:#e2e8f0;
+  --accent:#1d4ed8; --accent-soft:#dbeafe; --accent-ink:#1e3a8a;
+  --danger:#b91c1c; --danger-soft:#fee2e2; --warn:#b45309; --warn-soft:#fef3c7;
+  --ok:#047857; --ok-soft:#d1fae5; --note:#6d28d9; --note-soft:#ede9fe;
+  --na:#e11d48; --cl:#2563eb; --hco3:#059669; --alb:#7c3aed; --lac:#ea580c; --xa:#94a3b8; --oth:#f59e0b;
+  --plasma:#e11d48; --isf:#38bdf8; --icf:#a855f7;
+  --code-bg:#f1f5f9; --shadow:0 1px 2px rgba(15,23,42,.06),0 1px 3px rgba(15,23,42,.08);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0b1220; --surface:#111a2e; --surface-2:#17223a; --surface-3:#22304d;
+    --text:#e5edf8; --muted:#a8b6cc; --faint:#8a99b2; --border:#26344f;
+    --accent:#7aa7ff; --accent-soft:#1b2c4f; --accent-ink:#c9dbff;
+    --danger:#f87171; --danger-soft:#3b1717; --warn:#fbbf24; --warn-soft:#3a2a0c;
+    --ok:#34d399; --ok-soft:#0f2e25; --note:#c4b5fd; --note-soft:#2a2149;
+    --xa:#64748b; --code-bg:#17223a; --shadow:none; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0b1220; --surface:#111a2e; --surface-2:#17223a; --surface-3:#22304d;
+  --text:#e5edf8; --muted:#a8b6cc; --faint:#8a99b2; --border:#26344f;
+  --accent:#7aa7ff; --accent-soft:#1b2c4f; --accent-ink:#c9dbff;
+  --danger:#f87171; --danger-soft:#3b1717; --warn:#fbbf24; --warn-soft:#3a2a0c;
+  --ok:#34d399; --ok-soft:#0f2e25; --note:#c4b5fd; --note-soft:#2a2149;
+  --xa:#64748b; --code-bg:#17223a; --shadow:none; color-scheme: dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;overflow-x:hidden}
+a{color:var(--accent)}
+img{max-width:100%}
+h1,h2,h3,h4{line-height:1.25;margin:0 0 .5em}
+h2{font-size:1.6rem;margin-top:.2em}
+h3{font-size:1.15rem;margin-top:1.4em}
+h4{font-size:1rem;margin-top:1em}
+p{margin:.5em 0 .9em}
+ul,ol{padding-left:1.3em;margin:.4em 0 1em}
+li{margin:.25em 0}
+small,.small{font-size:.85rem}
+.muted{color:var(--muted)}
+.wrap{max-width:1120px;margin:0 auto;padding:0 16px}
+/* Header */
+.site-header{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--surface) 94%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:12px;padding:8px 0;min-width:0}
+.brand a.logo{display:flex;align-items:center;flex-shrink:0;background:#fff;border-radius:8px;padding:3px 6px}
+.brand img{height:30px;width:auto;display:block}
+.brand .titles{min-width:0;flex:1}
+.brand .t1{font-weight:700;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand .t2{font-size:.78rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.theme-btn{flex-shrink:0;border:1px solid var(--border);background:var(--surface-2);color:var(--text);border-radius:8px;padding:6px 10px;font-size:.8rem;cursor:pointer}
+.nav{display:flex;gap:4px;overflow-x:auto;padding:0 0 8px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+.nav a{flex-shrink:0;text-decoration:none;color:var(--muted);font-size:.85rem;font-weight:600;padding:6px 10px;border-radius:999px;border:1px solid transparent}
+.nav a:hover{background:var(--surface-2);color:var(--text)}
+.nav a.active{background:var(--accent);color:#fff}
+:root[data-theme="dark"] .nav a.active{color:#0b1220}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .nav a.active{color:#0b1220}}
+/* Sections */
+section.block{scroll-margin-top:112px;padding:28px 0 8px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;box-shadow:var(--shadow);margin:14px 0;min-width:0}
+.card > :first-child{margin-top:0}
+.kicker{font-size:.75rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
+.formula{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--code-bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin:8px 0 12px;font-size:.9rem;overflow-x:auto;white-space:pre-wrap;word-break:break-word}
+.formula b{color:var(--accent-ink)}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--code-bg);padding:1px 5px;border-radius:5px;font-size:.88em}
+.callout{border-radius:12px;padding:12px 14px;margin:12px 0;border:1px solid var(--border);background:var(--surface-2)}
+.callout.info{background:var(--accent-soft);border-color:transparent}
+.callout.warn{background:var(--warn-soft);border-color:transparent}
+.callout.danger{background:var(--danger-soft);border-color:transparent}
+.callout.ok{background:var(--ok-soft);border-color:transparent}
+.callout.note{background:var(--note-soft);border-color:transparent}
+.callout > :first-child{margin-top:0}.callout > :last-child{margin-bottom:0}
+.tag{display:inline-block;font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--surface-3);color:var(--muted);vertical-align:middle}
+.tag.simplified{background:var(--warn-soft);color:var(--warn)}
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--border);border-radius:10px;margin:10px 0}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{padding:7px 9px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+th{background:var(--surface-2);font-weight:700;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;white-space:nowrap}
+/* Buttons & forms */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);border-radius:10px;padding:8px 14px;font-weight:600;font-size:.9rem;cursor:pointer;font-family:inherit}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+:root[data-theme="dark"] .btn.primary{color:#0b1220}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.primary{color:#0b1220}}
+.btn.small{padding:5px 10px;font-size:.8rem}
+.btn-row{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+label.field{display:flex;flex-direction:column;gap:3px;font-size:.8rem;font-weight:600;color:var(--muted);min-width:0}
+label.field span.u{font-weight:400;color:var(--faint)}
+input[type=number],input[type=text],select{width:100%;min-width:0;padding:8px 9px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text);font:inherit;font-size:.95rem}
+input[type=number]:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
+input.invalid{border-color:var(--danger);background:var(--danger-soft)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.form-grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(min(100%,140px),1fr))}
+.subtabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin:10px 0}
+.subtabs button{flex-shrink:0;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:999px;padding:7px 12px;font-weight:600;font-size:.85rem;cursor:pointer;font-family:inherit}
+.subtabs button[aria-selected="true"]{background:var(--text);color:var(--bg);border-color:var(--text)}
+.hidden{display:none !important}
+/* Stats */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,120px),1fr));gap:8px}
+.stat{background:var(--surface-2);border-radius:10px;padding:8px 10px;min-width:0}
+.stat .k{font-size:.72rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.stat .v{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:1.15rem;font-weight:700}
+.v.low{color:var(--danger)} .v.high{color:var(--accent)} .v.normal{color:var(--ok)}
+.svg-box{width:100%;max-width:100%}
+.svg-box svg{width:100%;height:auto;display:block}
+#gamble{max-width:380px;margin:0 auto}
+svg text{fill:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+svg .axis{stroke:var(--faint)} svg .grid-line{stroke:var(--border)} svg .muted-text{fill:var(--muted)}
+/* Volume bars */
+.vbar{display:grid;grid-template-columns:110px 1fr 70px;align-items:center;gap:8px;font-size:.85rem;margin:6px 0}
+.vbar .track{position:relative;height:16px;background:var(--surface-2);border-radius:8px;overflow:hidden}
+.vbar .track::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--faint)}
+.vbar .fill{position:absolute;top:0;bottom:0;border-radius:8px;transition:all .25s}
+.vbar .val{font-family:ui-monospace,monospace;text-align:right}
+/* Results */
+.result-table td:first-child{width:46%}
+.flag{font-weight:700}
+.flag.bad{color:var(--danger)} .flag.good{color:var(--ok)} .flag.mid{color:var(--warn)}
+.errors{color:var(--danger);font-weight:600}
+/* Cases & quiz */
+.case h3{margin-top:0}
+.labs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.labs span{background:var(--surface-2);border-radius:8px;padding:3px 8px;font-family:ui-monospace,monospace;font-size:.82rem}
+.answer{border-top:1px dashed var(--border);margin-top:10px;padding-top:10px}
+.quiz-q{margin:14px 0}
+.quiz-q .opts{display:grid;gap:6px;margin:8px 0}
+.quiz-q label{display:flex;gap:8px;align-items:flex-start;padding:8px 10px;border:1px solid var(--border);border-radius:10px;cursor:pointer;background:var(--surface)}
+.quiz-q label.correct{border-color:var(--ok);background:var(--ok-soft)}
+.quiz-q label.wrong{border-color:var(--danger);background:var(--danger-soft)}
+.quiz-q .expl{font-size:.9rem}
+/* Footer */
+footer{margin-top:40px;border-top:1px solid var(--border);background:var(--surface);padding:22px 0 40px;font-size:.88rem;color:var(--muted)}
+.refs li{margin:.45em 0;font-size:.9rem;overflow-wrap:anywhere}
+.toc{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(min(100%,200px),1fr))}
+.toc a{display:block;text-decoration:none;color:var(--text);background:var(--surface-2);border-radius:10px;padding:10px 12px;font-weight:600;font-size:.92rem}
+.toc a span{display:block;font-weight:400;color:var(--muted);font-size:.8rem}
+.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:.8rem;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:.85rem;font-weight:600;padding:8px 10px;background:var(--surface-2);border-radius:10px}
+.switch input{width:20px;height:20px;accent-color:var(--danger)}
+@media (max-width:520px){
+  h2{font-size:1.35rem}
+  .card{padding:14px}
+  .vbar{grid-template-columns:84px 1fr 62px;font-size:.78rem}
+  .brand .t2{display:none}
+}
+@media print{.site-header,.subtabs,.btn{display:none}}
+</style>
 </head>
-<body class="bg-slate-50 font-sans text-slate-800 min-h-screen pb-20">
+<body>
 
-    <div class="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
-        
-        <header class="flex flex-col md:flex-row justify-between items-center border-b border-slate-200 pb-4 gap-4">
-            <div>
-                <h1 class="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                    <i data-lucide="activity" class="text-blue-600"></i> Physiology Sandbox 
-                    <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded ml-2 font-mono">v2.0</span>
-                </h1>
-                <p class="text-sm text-slate-500">Fluid Kinetics, Stewart Approach & Haemodynamics</p>
-            </div>
-            
-            <div class="flex flex-wrap gap-2 justify-center" id="nav-container">
-                <button onclick="switchTab('stewart')" id="tab-stewart" class="nav-btn px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all bg-slate-800 text-white shadow-lg"><i data-lucide="beaker" size="16"></i> Stewart & SID</button>
-                <button onclick="switchTab('starling')" id="tab-starling" class="nav-btn px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all bg-white text-slate-500 hover:bg-slate-100 border border-slate-200"><i data-lucide="heart-pulse" size="16"></i> Haemodynamics</button>
-                <button onclick="switchTab('micro')" id="tab-micro" class="nav-btn px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all bg-white text-slate-500 hover:bg-slate-100 border border-slate-200"><i data-lucide="zap" size="16"></i> Micro</button>
-                <button onclick="switchTab('comparator')" id="tab-comparator" class="nav-btn px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all bg-white text-slate-500 hover:bg-slate-100 border border-slate-200"><i data-lucide="git-compare" size="16"></i> Compare</button>
-                <button onclick="switchTab('cases')" id="tab-cases" class="nav-btn px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all bg-white text-slate-500 hover:bg-slate-100 border border-slate-200"><i data-lucide="user-check" size="16"></i> Cases</button>
-            </div>
-        </header>
-
-        <main id="main-content" class="fade-in">
-            <div id="view-stewart" class="view-section grid grid-cols-1 lg:grid-cols-12 gap-6">
-                <div class="lg:col-span-3 space-y-4">
-                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-4">
-                        <div class="flex items-center gap-2 mb-2">
-                            <i data-lucide="settings-2" class="text-slate-400" size="16"></i>
-                            <h3 class="font-bold text-slate-700 uppercase text-xs tracking-wider">Parameters</h3>
-                        </div>
-
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-400 uppercase">Infusate</label>
-                            <select id="fluid-select" class="w-full p-2 border rounded text-sm font-semibold bg-white focus:ring-2 ring-blue-100 outline-none border-slate-300"></select>
-                        </div>
-                        
-                        <div>
-                            <div class="flex justify-between text-xs font-bold text-slate-500 mb-1">
-                                <span>Lactate (Metabolic)</span>
-                                <span class="bg-orange-100 text-orange-700 px-1 rounded"><span id="lac-val">1.0</span> mM</span>
-                            </div>
-                            <input type="range" id="lactate-slider" min="0.5" max="15.0" step="0.5" value="1.0" class="text-orange-500">
-                        </div>
-
-                        <div>
-                            <div class="flex justify-between text-xs font-bold text-slate-500 mb-1">
-                                <span>PaCO₂ (Respiratory)</span>
-                                <span class="bg-indigo-100 text-indigo-700 px-1 rounded"><span id="paco2-val">5.3</span> kPa</span>
-                            </div>
-                            <input type="range" id="paco2-slider" min="2.0" max="10.0" step="0.1" value="5.3" class="text-indigo-500">
-                            <div class="flex justify-between text-[10px] text-slate-400 mt-1">
-                                <span>Hyperventilation</span>
-                                <span>Retention</span>
-                            </div>
-                        </div>
-
-                        <div class="flex items-center justify-between p-2 bg-slate-50 rounded border border-slate-100">
-                            <span class="font-bold text-xs text-slate-600">Capillary Leak (Sepsis)</span>
-                            <button id="sepsis-toggle" onclick="toggleSepsis()" class="w-10 h-5 rounded-full transition-colors relative bg-slate-300 shadow-inner">
-                                <div id="sepsis-indicator" class="absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-all shadow-sm"></div>
-                            </button>
-                        </div>
-
-                        <div class="flex gap-2 pt-2">
-                            <button id="play-btn" onclick="togglePlay()" class="flex-1 py-2.5 rounded-lg bg-blue-600 text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-blue-700 active:scale-95 transition shadow-sm hover:shadow-md">
-                                <i data-lucide="play" size="16"></i> Infuse
-                            </button>
-                            <button onclick="resetStewart()" class="px-3 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 transition shadow-sm" title="Reset Simulation">
-                                <i data-lucide="rotate-ccw" size="18"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="bg-slate-900 text-white p-5 rounded-xl space-y-3 text-sm shadow-lg relative overflow-hidden">
-                        <div class="absolute top-0 right-0 p-2 opacity-10"><i data-lucide="activity" size="64"></i></div>
-                        
-                        <div class="flex justify-between items-end border-b border-slate-700 pb-2">
-                            <span class="text-slate-400 font-medium">pH</span>
-                            <span id="stat-ph" class="font-mono font-bold text-2xl text-green-400">7.40</span>
-                        </div>
-                        
-                        <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-                            <div class="flex justify-between"><span>Base Excess</span><span id="stat-be" class="font-mono font-bold">0.0</span></div>
-                            <div class="flex justify-between"><span>SID (mEq/L)</span><span id="stat-sid" class="font-mono font-bold text-blue-300">40.0</span></div>
-                            <div class="flex justify-between"><span>HCO₃⁻</span><span id="stat-hco3" class="font-mono font-bold text-green-300">24.0</span></div>
-                            <div class="flex justify-between"><span>Lactate</span><span id="stat-lac" class="font-mono font-bold text-orange-400">1.0</span></div>
-                            <div class="flex justify-between col-span-2 border-t border-slate-700 pt-1 mt-1">
-                                <span class="text-slate-500">PaCO₂</span>
-                                <span id="stat-paco2-disp" class="font-mono text-indigo-300">5.3 kPa</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 h-44 flex items-end justify-center gap-3 relative">
-                        <div class="absolute top-2 left-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider flex gap-1"><i data-lucide="container" size="12"></i> Volume Compartments</div>
-                        
-                        <div class="w-1/3 h-full flex flex-col justify-end group">
-                            <div class="relative w-full bg-slate-100 rounded-t-lg h-32 overflow-hidden border-b border-slate-200">
-                                <div id="bar-plasma" class="absolute bottom-0 w-full bg-rose-500 bar-transition opacity-90 group-hover:opacity-100" style="height: 20%;"></div>
-                            </div>
-                            <div class="text-center text-[10px] font-bold text-slate-500 mt-1">Plasma</div>
-                        </div>
-
-                        <div class="w-1/3 h-full flex flex-col justify-end group">
-                            <div class="relative w-full bg-slate-100 rounded-t-lg h-32 overflow-hidden border-b border-slate-200">
-                                <div id="bar-edema" class="absolute bottom-0 w-full bg-blue-400 bar-transition opacity-90 group-hover:opacity-100" style="height: 30%;"></div>
-                            </div>
-                            <div class="text-center text-[10px] font-bold text-slate-500 mt-1">Interstitium</div>
-                        </div>
-
-                        <div class="w-1/3 h-full flex flex-col justify-end group">
-                            <div class="relative w-full bg-slate-100 rounded-t-lg h-32 overflow-hidden border-b border-slate-200">
-                                <div id="bar-urine" class="absolute bottom-0 w-full bg-yellow-400 bar-transition opacity-90 group-hover:opacity-100" style="height: 0%;"></div>
-                            </div>
-                            <div class="text-center text-[10px] font-bold text-slate-500 mt-1">Urine</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="lg:col-span-9 bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col relative h-[650px]">
-                    <h2 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2 border-b pb-4">
-                        <div class="bg-blue-100 p-2 rounded-lg"><i data-lucide="bar-chart-2" class="text-blue-600"></i></div>
-                        <div>
-                            <div>Gamblegram</div>
-                            <div class="text-xs text-slate-400 font-normal">Visualising Stewart's Physico-Chemical Approach</div>
-                        </div>
-                    </h2>
-                    
-                    <div class="flex-1 flex items-end justify-center gap-8 md:gap-16 select-none pb-8 overflow-x-auto custom-scrollbar">
-                        <div class="w-32 md:w-40 flex flex-col shadow-xl shadow-slate-200 group relative transition-transform hover:scale-105 duration-300">
-                            <div class="absolute -top-10 w-full text-center font-bold text-slate-400 text-xs uppercase tracking-wider mb-2">Cations (+)</div>
-                            
-                            <div class="bg-amber-200 w-full flex items-center justify-center text-xs font-bold text-amber-800 border-b border-white/40 bar-transition relative" style="height: 20px;">
-                                <span class="z-10">K⁺ / Mg²⁺ / Ca²⁺</span>
-                            </div>
-                            
-                            <div id="gamble-na" class="bg-rose-500 w-full flex items-center justify-center text-white font-bold rounded-b-lg text-2xl bar-transition relative overflow-hidden shadow-inner" style="height: 420px;">
-                                <div class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
-                                <span class="z-10 drop-shadow-md">Na⁺</span>
-                                <span id="val-na" class="text-sm ml-2 opacity-80 font-mono z-10">140</span>
-                            </div>
-                        </div>
-
-                        <div class="w-32 md:w-40 flex flex-col shadow-xl shadow-slate-200 relative justify-end h-full group transition-transform hover:scale-105 duration-300">
-                            <div class="absolute -top-10 w-full text-center font-bold text-slate-400 text-xs uppercase tracking-wider mb-2">Anions (-)</div>
-                            
-                            <div class="flex flex-col w-full justify-end h-full">
-                                <div id="gamble-alb" class="bg-purple-500 w-full flex flex-col items-center justify-center text-xs font-bold text-white border-b border-white/20 bar-transition overflow-hidden shadow-inner relative" style="height: 33px;">
-                                    <div class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
-                                    <span class="z-10">Alb⁻ (Atot)</span>
-                                </div>
-                                
-                                <div id="gamble-lac" class="bg-orange-500 w-full flex flex-col items-center justify-center text-white font-bold border-b border-white/20 bar-transition overflow-hidden relative" style="height: 3px;">
-                                    <span class="text-[10px] z-10 drop-shadow-sm">Lac⁻</span>
-                                </div>
-
-                                <div id="gamble-sig" class="bg-slate-300 w-full flex flex-col items-center justify-center text-slate-600 font-bold border-b border-white/20 bar-transition overflow-hidden relative" style="height: 0px;">
-                                    <span class="text-[9px] uppercase tracking-tighter">SIG</span>
-                                </div>
-                                
-                                <div id="gamble-hco3" class="bg-emerald-500 w-full flex flex-col items-center justify-center text-white font-bold border-b border-white/20 relative bar-transition overflow-visible shadow-inner" style="height: 72px;">
-                                    <div class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
-                                    <span class="text-2xl drop-shadow-md">HCO₃⁻</span>
-                                    <span id="val-hco3" class="text-xs opacity-90 font-mono">24.0</span>
-
-                                    <div id="sid-bracket" class="absolute -right-8 top-0 border-r-2 border-slate-300 border-t-2 border-b-2 rounded-r" style="height: 105px; top: -33px; width: 10px;"></div>
-                                    <div id="sid-label" class="absolute -right-24 top-0 text-sm font-bold text-slate-500 flex flex-col leading-tight" style="top: -16px;">
-                                        <span>SID</span>
-                                        <span class="text-xs font-mono text-slate-400 font-normal">40 mEq</span>
-                                    </div>
-                                </div>
-                                
-                                <div id="gamble-cl" class="bg-blue-500 w-full flex items-center justify-center text-white font-bold rounded-b-lg text-2xl bar-transition relative overflow-hidden shadow-inner" style="height: 300px;">
-                                    <div class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
-                                    <span class="z-10 drop-shadow-md">Cl⁻</span>
-                                    <span id="val-cl" class="text-sm ml-2 opacity-80 font-mono z-10">100</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-blue-50 p-4 rounded-lg text-sm text-blue-900 border border-blue-100 mt-4 flex gap-3 items-start">
-                        <i data-lucide="info" class="shrink-0 mt-0.5 text-blue-500" size="18"></i>
-                        <div>
-                            <p class="font-bold mb-1">Physiology Note: The Strong Ion Difference (SID)</p>
-                            <p class="text-blue-800 leading-relaxed">
-                                pH is determined by three independent variables: <strong>SID</strong> (Na⁺ - Cl⁻), <strong>Atot</strong> (Albumin), and <strong>PaCO₂</strong>. 
-                                In this visualisation, see how increasing Lactate (an unmeasured anion in standard electrolyte panels, but measurable here) occupies space in the anion column ("crowding out" HCO₃⁻) 
-                                or how saline infusion (SID = 0) narrows the total SID, causing a Hyperchloraemic Metabolic Acidosis.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="view-starling" class="view-section hidden grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-                <div class="bg-white p-6 rounded-xl border border-slate-200 space-y-8 shadow-sm h-fit">
-                    <h3 class="font-bold text-lg text-slate-800 border-b pb-2">Cardiac Output</h3>
-                    
-                    <div class="space-y-4">
-                        <div>
-                            <div class="flex justify-between mb-1">
-                                <label class="text-xs font-bold text-slate-500 uppercase">Preload (LVEDP)</label>
-                                <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">Volume</span>
-                            </div>
-                            <input type="range" id="starling-preload" min="0" max="30" value="10" class="w-full h-2 bg-blue-100 rounded-lg text-blue-600">
-                        </div>
-                        
-                        <div>
-                            <div class="flex justify-between mb-1">
-                                <label class="text-xs font-bold text-slate-500 uppercase">Contractility</label>
-                                <span class="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">Inotropy</span>
-                            </div>
-                            <input type="range" id="starling-inotropy" min="0.5" max="2.0" step="0.1" value="1.0" class="w-full h-2 bg-green-100 rounded-lg text-green-600">
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="bg-slate-50 p-3 rounded text-center border border-slate-100">
-                            <span class="text-[10px] text-slate-400 uppercase font-bold block mb-1">Stroke Volume</span>
-                            <span id="starling-sv-display" class="font-mono font-bold text-xl text-pink-600">63 mL</span>
-                        </div>
-                        <div class="bg-slate-50 p-3 rounded text-center border border-slate-100">
-                            <span class="text-[10px] text-slate-400 uppercase font-bold block mb-1">Cardiac Output</span>
-                            <span id="starling-co-display" class="font-mono font-bold text-xl text-slate-700">4.5 L</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="md:col-span-2 bg-white p-6 rounded-xl border border-slate-200 h-[450px] shadow-sm flex flex-col">
-                    <div class="flex-1 w-full relative">
-                        <svg viewBox="0 0 650 350" class="w-full h-full overflow-visible">
-                            <defs>
-                                <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="#f1f5f9" stroke-width="1"/></pattern>
-                                <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8" /></marker>
-                            </defs>
-                            
-                            <rect width="650" height="350" fill="url(#grid)" />
-                            <line x1="0" y1="350" x2="650" y2="350" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)" />
-                            <line x1="0" y1="350" x2="0" y2="0" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)" />
-                            
-                            <text x="325" y="380" text-anchor="middle" class="text-xs font-bold fill-slate-400 tracking-widest">PRELOAD (LVEDP)</text>
-                            <text x="-175" y="-20" transform="rotate(-90)" text-anchor="middle" class="text-xs font-bold fill-slate-400 tracking-widest">STROKE VOLUME</text>
-                            
-                            <path id="starling-curve" fill="none" stroke="#db2777" stroke-width="4" stroke-linecap="round" class="drop-shadow-lg transition-all duration-300 ease-out"></path>
-                            
-                            <circle id="starling-point" r="8" fill="white" stroke="#2563eb" stroke-width="4" class="drop-shadow-md transition-all duration-100 ease-linear"></circle>
-                            
-                            <line id="guide-x" x1="0" y1="0" x2="0" y2="350" stroke="#cbd5e1" stroke-dasharray="5,5" />
-                            <line id="guide-y" x1="0" y1="0" x2="650" y2="0" stroke="#cbd5e1" stroke-dasharray="5,5" />
-                        </svg>
-                    </div>
-                </div>
-            </div>
-
-            <div id="view-micro" class="view-section hidden grid grid-cols-1 md:grid-cols-2 gap-8 items-center h-full max-w-5xl mx-auto">
-                <div class="space-y-6">
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                        <div class="flex items-center gap-2 mb-4">
-                            <div class="bg-purple-100 p-2 rounded"><i data-lucide="microscope" class="text-purple-600" size="20"></i></div>
-                            <h3 class="font-bold text-slate-800">Transcellular Exchange</h3>
-                        </div>
-                        
-                        <label class="text-xs font-bold text-slate-500 uppercase mb-2 block">Extracellular pH</label>
-                        <input type="range" id="micro-ph-slider" min="6.9" max="7.6" step="0.05" value="7.4" class="w-full h-2 bg-slate-200 rounded-lg text-blue-600 mb-4">
-                        
-                        <div class="flex justify-between font-mono font-bold bg-slate-50 p-3 rounded border border-slate-100">
-                            <span class="text-red-500 text-sm">Acidosis (6.9)</span>
-                            <span id="micro-ph-val" class="text-slate-900 text-xl">7.40</span>
-                            <span class="text-blue-500 text-sm">Alkalosis (7.6)</span>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-blue-50 p-5 rounded-xl text-sm text-slate-700 border border-blue-100">
-                        <p class="font-bold mb-2 text-blue-900 flex items-center gap-2"><i data-lucide="arrow-left-right" size="16"></i> H⁺/K⁺ Antiporter Mechanism:</p>
-                        <ul class="space-y-2 ml-1">
-                            <li class="flex items-start gap-2"><div class="w-1.5 h-1.5 bg-blue-400 rounded-full mt-1.5 shrink-0"></div><span>In <strong>Acidosis</strong>, excess ECF H⁺ moves <em>into</em> the cell to be buffered by intracellular proteins.</span></li>
-                            <li class="flex items-start gap-2"><div class="w-1.5 h-1.5 bg-blue-400 rounded-full mt-1.5 shrink-0"></div><span>To maintain electroneutrality, intracellular K⁺ is extruded into the ECF.</span></li>
-                            <li class="flex items-start gap-2"><div class="w-1.5 h-1.5 bg-red-400 rounded-full mt-1.5 shrink-0"></div><span class="font-bold text-slate-800">Clinical Result: Hyperkalaemia despite normal total body potassium.</span></li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="relative h-[450px] w-full bg-sky-50 rounded-xl border-4 border-sky-100 overflow-hidden shadow-inner flex flex-col">
-                    <div class="flex-1 relative p-4">
-                        <div class="font-bold text-sky-800 uppercase tracking-widest text-xs mb-2">Extracellular Fluid (ECF)</div>
-                        
-                        <div id="micro-k-ecf" class="absolute top-1/2 left-1/4 -translate-y-1/2 text-3xl font-bold text-yellow-600 transition-all duration-500 flex flex-col items-center">
-                            <span>[K⁺]</span>
-                            <span id="micro-k-val-text" class="text-lg font-mono text-yellow-700">4.0</span>
-                        </div>
-                        
-                        <div id="micro-h-ecf" class="absolute top-1/2 right-1/4 -translate-y-1/2 text-3xl font-bold text-red-600 transition-all duration-500 opacity-0 flex flex-col items-center">
-                            <span>H⁺</span>
-                            <span class="text-xs uppercase tracking-widest text-red-400">Excess</span>
-                        </div>
-                    </div>
-
-                    <div class="h-6 bg-yellow-200 border-y-4 border-yellow-300 flex items-center justify-center z-10 shadow-sm relative">
-                        <div class="bg-white border-2 border-slate-300 rounded-full w-24 h-24 absolute flex items-center justify-center shadow-lg bg-opacity-90 backdrop-blur-sm">
-                            <div class="flex flex-col items-center gap-1">
-                                <div class="flex items-center gap-2 text-red-600 font-bold text-xs"><i data-lucide="arrow-down" size="14"></i> H⁺</div>
-                                <div class="w-16 h-px bg-slate-300"></div>
-                                <div class="flex items-center gap-2 text-yellow-600 font-bold text-xs"><i data-lucide="arrow-up" size="14"></i> K⁺</div>
-                            </div>
-                        </div>
-                        <span class="text-[10px] font-bold text-yellow-800 bg-yellow-100 px-3 py-0.5 rounded-full z-0">Cell Membrane</span>
-                    </div>
-
-                    <div class="flex-1 bg-rose-50 p-4 relative">
-                        <div class="font-bold text-rose-800 uppercase tracking-widest text-xs absolute bottom-4 left-4">Intracellular Fluid (ICF)</div>
-                        <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(#be123c 1px, transparent 1px); background-size: 20px 20px;"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="view-comparator" class="view-section hidden space-y-6 max-w-5xl mx-auto">
-                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                    <div class="flex flex-col md:flex-row gap-8 items-center justify-between mb-8">
-                        <div class="w-full md:w-1/3">
-                            <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Fluid A</label>
-                            <div class="flex items-center bg-white p-1 rounded-lg border-l-4 border-blue-500 shadow-sm border border-slate-200">
-                                <select id="comp-select-a" class="w-full font-bold text-slate-700 bg-transparent p-2 outline-none"></select>
-                            </div>
-                            <div id="info-a" class="mt-2 text-xs text-slate-500 font-mono pl-2">SID: <span class="font-bold">0</span></div>
-                        </div>
-
-                        <div class="flex items-center justify-center">
-                            <div class="bg-slate-100 rounded-full p-3 font-black text-slate-400 text-xl shadow-inner">VS</div>
-                        </div>
-
-                        <div class="w-full md:w-1/3">
-                            <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Fluid B</label>
-                            <div class="flex items-center bg-white p-1 rounded-lg border-l-4 border-emerald-500 shadow-sm border border-slate-200">
-                                <select id="comp-select-b" class="w-full font-bold text-slate-700 bg-transparent p-2 outline-none"></select>
-                            </div>
-                            <div id="info-b" class="mt-2 text-xs text-slate-500 font-mono pl-2">SID: <span class="font-bold">0</span></div>
-                        </div>
-                    </div>
-
-                    <div class="relative w-full h-[400px] bg-slate-50 rounded-lg border border-slate-200 overflow-hidden">
-                        <div class="absolute top-4 left-4 z-10 font-bold text-slate-500 text-sm">Projected pH Trend (Based on Fluid SID)</div>
-                        <svg id="comp-chart" viewBox="0 0 800 400" class="w-full h-full overflow-visible">
-                             <pattern id="comp-grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e2e8f0" stroke-width="1"/></pattern>
-                             <rect width="800" height="400" fill="url(#comp-grid)" />
-                             
-                             <line x1="0" y1="200" x2="800" y2="200" stroke="#94a3b8" stroke-width="2" stroke-dasharray="6"/>
-                             <text x="810" y="200" class="text-xs font-bold fill-slate-500" alignment-baseline="middle">pH 7.4</text>
-                             
-                             <text x="10" y="380" class="text-xs font-bold fill-red-300 uppercase">Acidosis</text>
-                             <text x="10" y="20" class="text-xs font-bold fill-blue-300 uppercase">Alkalosis</text>
-
-                             <path id="comp-line-a" fill="none" stroke="#3b82f6" stroke-width="4" stroke-linecap="round" class="drop-shadow-md transition-all duration-500"></path>
-                             <path id="comp-line-b" fill="none" stroke="#10b981" stroke-width="4" stroke-linecap="round" class="drop-shadow-md transition-all duration-500"></path>
-                        </svg>
-                    </div>
-                    
-                    <div class="mt-4 text-xs text-slate-400 text-center">
-                        *Projection assumes large volume infusion into a euvolaemic patient with normal starting physiology.
-                    </div>
-                </div>
-            </div>
-
-            <div id="view-cases" class="view-section hidden grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
-                <div class="space-y-4">
-                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                        <h3 class="font-bold text-slate-700 mb-2 text-xs uppercase">Select Scenario</h3>
-                        <div class="flex gap-2">
-                            <button onclick="setCase('sepsis')" id="case-sepsis" class="flex-1 py-3 rounded-lg font-bold transition-all border shadow-sm">Septic Shock</button>
-                            <button onclick="setCase('dka')" id="case-dka" class="flex-1 py-3 rounded-lg font-bold transition-all border shadow-sm">DKA</button>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-slate-900 text-white p-6 rounded-xl space-y-6 shadow-xl relative overflow-hidden">
-                        <div class="absolute top-0 right-0 w-32 h-32 bg-green-500 blur-[60px] opacity-10 rounded-full pointer-events-none"></div>
-                        
-                        <div class="flex items-center justify-between border-b border-slate-700 pb-4">
-                            <div class="flex items-center gap-3">
-                                <i data-lucide="activity" class="text-green-500 animate-pulse"></i>
-                                <span class="text-sm text-slate-400 font-bold uppercase tracking-wider">Patient Monitor</span>
-                            </div>
-                            <span class="text-xs font-mono text-slate-500">REAL-TIME</span>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-6">
-                            <div>
-                                <div class="text-[10px] text-slate-400 uppercase font-bold mb-1">Heart Rate</div>
-                                <div class="flex items-end gap-2">
-                                    <span id="case-hr" class="text-4xl font-mono font-bold text-green-400">120</span>
-                                    <span class="text-xs text-slate-500 mb-1">bpm</span>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="text-[10px] text-slate-400 uppercase font-bold mb-1">Mean Art. Pressure</div>
-                                <div class="flex items-end gap-2">
-                                    <span id="case-map" class="text-4xl font-mono font-bold text-blue-400">55</span>
-                                    <span class="text-xs text-slate-500 mb-1">mmHg</span>
-                                </div>
-                            </div>
-                            <div class="col-span-2 bg-slate-800 p-3 rounded-lg border border-slate-700">
-                                <div class="text-[10px] text-slate-400 uppercase font-bold mb-1 flex items-center gap-2"><i data-lucide="stethoscope" size="12"></i> Lung Auscultation</div>
-                                <div id="case-lungs" class="text-lg font-bold text-white">Clear</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between h-full">
-                    <div>
-                        <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2"><i data-lucide="syringe" class="text-slate-400" size="18"></i> Interventions</h3>
-                        <div class="grid grid-cols-2 gap-3">
-                            <button onclick="treatCase('fluid')" class="p-4 bg-blue-50 text-blue-800 rounded-xl font-bold flex flex-col items-center hover:bg-blue-100 transition border border-blue-100 group">
-                                <i data-lucide="droplet" size="24" class="mb-2 text-blue-500 group-hover:scale-110 transition-transform"></i> 
-                                <span>500ml Plasmalyte</span>
-                            </button>
-                            <button onclick="treatCase('norad')" class="p-4 bg-amber-50 text-amber-800 rounded-xl font-bold flex flex-col items-center hover:bg-amber-100 transition border border-amber-100 group">
-                                <i data-lucide="zap" size="24" class="mb-2 text-amber-500 group-hover:scale-110 transition-transform"></i> 
-                                <span>Noradrenaline</span>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="mt-8 bg-slate-50 p-4 rounded-lg border border-slate-200 relative">
-                        <div class="absolute -top-3 left-3 bg-white px-2 text-xs font-bold text-slate-400 uppercase border rounded">Clinical Log</div>
-                        <p id="case-log" class="text-sm font-medium text-slate-700 mt-2 leading-relaxed">Patient arrived. Awaiting assessment.</p>
-                    </div>
-                </div>
-            </div>
-        </main>
+<header class="site-header">
+  <div class="wrap">
+    <div class="brand">
+      <a class="logo" href="https://emevidence.org" title="EMEvidence home"><img src="https://raw.githubusercontent.com/shakeymedic/wmem/main/emevidence_logo.png" alt="EMEvidence logo" width="90" height="30"></a>
+      <div class="titles">
+        <div class="t1">Acid–Base &amp; Fluids Sandbox</div>
+        <div class="t2">Traditional, base excess and Stewart (SID) approaches · IV fluids · simulators</div>
+      </div>
+      <button class="theme-btn" id="theme-btn" type="button" aria-label="Change colour theme">Theme: auto</button>
     </div>
+    <nav class="nav" id="nav" aria-label="Sections">
+      <a href="#overview">Overview</a>
+      <a href="#traditional">Traditional</a>
+      <a href="#base-excess">Base excess</a>
+      <a href="#stewart">Stewart</a>
+      <a href="#fluids">Fluids</a>
+      <a href="#sandbox">Simulators</a>
+      <a href="#calculator">Calculator</a>
+      <a href="#cases">Cases</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#references">References</a>
+    </nav>
+  </div>
+</header>
 
-    <script>
-        // --- CONSTANTS & CONFIG ---
-        // British spelling used in comments/text where appropriate
-        
-        const FLUIDS = {
-            saline: { name: "0.9% Saline", na: 154, cl: 154, k: 0, albuminContent: 0, osm: 308, distribution: 'ecf', sid: 0 },
-            hartmanns: { name: "Hartmann's", na: 131, cl: 111, k: 5, albuminContent: 0, osm: 274, distribution: 'ecf', sid: 29 }, 
-            plasmalyte: { name: "Plasma-Lyte 148", na: 140, cl: 98, k: 5, albuminContent: 0, osm: 295, distribution: 'ecf', sid: 50 }, // In vitro SID high, in vivo ~24-29 equiv
-            albumin4: { name: "Albumin 4%", na: 140, cl: 128, k: 0, albuminContent: 40, osm: 290, distribution: 'plasma', sid: 12 },
-            albumin20: { name: "Albumin 20%", na: 140, cl: 120, k: 0, albuminContent: 200, osm: 310, distribution: 'plasma_expand', sid: 20 },
-            bicarb: { name: "Sodium Bicarb 8.4%", na: 1000, cl: 0, k: 0, albuminContent: 0, osm: 2000, distribution: 'tbw', sid: 1000 }, // Hypertonic
-            d5w: { name: "Dextrose 5%", na: 0, cl: 0, k: 0, albuminContent: 0, osm: 252, distribution: 'tbw', sid: 0 }
-        };
+<main class="wrap">
 
-        const BASE_NA = 140, BASE_CL = 100, BASE_K = 4.0, BASE_ALB = 40;
-        const BASE_PV = 3.5, BASE_ISF = 10.5, BASE_ECF = 14;
-        const SCALE = 2.8; 
+<!-- ============================ OVERVIEW ============================ -->
+<section class="block" id="overview">
+  <div class="kicker">Overview</div>
+  <h2>Three lenses on the same blood gas</h2>
+  <p>There are three widely taught ways of analysing acid–base disturbances. They are <strong>complementary, not competing</strong>: they use the same chemistry and, applied properly, reach the same diagnosis. They differ in which variables they treat as causes and which they treat as markers.</p>
+  <div class="grid g3">
+    <div class="card"><h4>1. Traditional ("physiological" / Boston)</h4><p class="small">Henderson–Hasselbalch, bicarbonate as the metabolic marker, the anion gap, the delta ratio and empirical compensation rules. Quick and familiar at the bedside.</p><a href="#traditional" class="small">Go to section →</a></div>
+    <div class="card"><h4>2. Base excess (Copenhagen)</h4><p class="small">The standard base excess quantifies the metabolic component independently of PCO₂. It can be partitioned into sodium–chloride, albumin and unmeasured-anion effects.</p><a href="#base-excess" class="small">Go to section →</a></div>
+    <div class="card"><h4>3. Physicochemical (Stewart)</h4><p class="small">pH is set by three independent variables: PCO₂, the strong ion difference (SID) and total weak acid (A<sub>TOT</sub>). This explains fluid-induced acidosis and hypoalbuminaemic alkalosis.</p><a href="#stewart" class="small">Go to section →</a></div>
+  </div>
+  <div class="toc" style="margin-top:6px">
+    <a href="#fluids">Fluids &amp; SID<span>Compartments, where 1 L goes, UK crystalloid composition</span></a>
+    <a href="#sandbox">Simulators<span>Gamblegram, fluid comparator, K⁺ shift, Frank–Starling</span></a>
+    <a href="#calculator">Calculator<span>AG, delta ratio, osmolar gap, SIG, partitioned BE</span></a>
+    <a href="#cases">Worked cases<span>8 emergency medicine scenarios</span></a>
+    <a href="#quiz">Quiz<span>Test yourself</span></a>
+  </div>
+  <div class="callout warn small"><strong>Educational use only.</strong> This site is a teaching aid. It is not a medical device, has not been validated for clinical use and must not be used to make decisions about individual patients. Reference ranges vary between laboratories and analysers; always use your local ranges and guidance.</div>
+</section>
 
-        let state = {
-            currentTab: 'stewart',
-            selectedFluid: 'saline',
-            isPlaying: false,
-            sepsisMode: false,
-            sim: {
-                plasma: 0, isf: 0, urine: 0,
-                na: BASE_NA, cl: BASE_CL, k: BASE_K, hco3: 24, alb: BASE_ALB, lac: 1.0,
-                paco2_kpa: 5.3,
-                ph: 7.4, sid: 40, be: 0, sig: 0
-            },
-            case: { type: 'sepsis', hr: 120, map: 55, lungs: 'Clear', fluidGiven: 0 }
-        };
+<!-- ============================ TRADITIONAL ============================ -->
+<section class="block" id="traditional">
+  <div class="kicker">Approach 1</div>
+  <h2>Traditional (physiological / Boston) approach</h2>
 
-        let simInterval;
+  <div class="card">
+    <h3>Henderson–Hasselbalch</h3>
+    <div class="formula">pH = 6.1 + log₁₀ ( [HCO₃⁻] ÷ (0.23 × PaCO₂ in kPa) )
+   = 6.1 + log₁₀ ( [HCO₃⁻] ÷ (0.03 × PaCO₂ in mmHg) )
 
-        // --- INITIALISATION ---
-        window.onload = function() {
-            lucide.createIcons();
-            populateFluidSelects();
-            renderStewartUI();
-            updateMicroUI();
-            updateStarlingUI();
-            updateComparatorUI();
-            updateCaseUI();
-            
-            // Listeners
-            document.getElementById('lactate-slider').oninput = (e) => {
-                state.sim.lac = parseFloat(e.target.value);
-                document.getElementById('lac-val').innerText = state.sim.lac.toFixed(1);
-                recalcPhysics(); 
-                renderStewartUI();
-            };
+1 kPa = 7.50 mmHg      ·      6.1 = pKa′ of the CO₂/HCO₃⁻ system in plasma at 37 °C</div>
+    <p>The equation shows that pH depends on the <em>ratio</em> of bicarbonate to dissolved CO₂. Use it to check internal consistency: if the HCO₃⁻ calculated from pH and PCO₂ differs markedly from the reported value, suspect a transcription error or non-simultaneous samples. (Analysers <em>calculate</em> HCO₃⁻ from measured pH and PCO₂, whereas the laboratory "bicarbonate" is usually measured total CO₂, which runs about 1–2 mmol/L higher.)</p>
+    <h4>Commonly used adult reference values (arterial)</h4>
+    <div class="table-wrap"><table>
+      <tr><th>Variable</th><th>Typical range</th><th>Notes</th></tr>
+      <tr><td>pH</td><td>7.35–7.45</td><td>[H⁺] ≈ 35–45 nmol/L</td></tr>
+      <tr><td>PaCO₂</td><td>4.7–6.0 kPa (35–45 mmHg)</td><td></td></tr>
+      <tr><td>HCO₃⁻</td><td>22–26 mmol/L</td><td>Some laboratories quote up to 29 for venous total CO₂</td></tr>
+      <tr><td>Standard base excess</td><td>−2 to +2 mmol/L</td><td></td></tr>
+      <tr><td>Anion gap (Na − Cl − HCO₃)</td><td>≈ 8–12 mmol/L with modern ion-selective electrodes</td><td>Older texts quote 12 ± 4; ranges vary considerably by analyser (Kraut &amp; Madias 2007)</td></tr>
+    </table></div>
+    <p class="small muted">Ranges vary between laboratories; use your own.</p>
+  </div>
 
-            document.getElementById('paco2-slider').oninput = (e) => {
-                state.sim.paco2_kpa = parseFloat(e.target.value);
-                document.getElementById('paco2-val').innerText = state.sim.paco2_kpa.toFixed(1);
-                recalcPhysics();
-                renderStewartUI();
-            };
-        };
+  <div class="card">
+    <h3>A step-wise interpretation</h3>
+    <ol>
+      <li><strong>History and context first.</strong> What do you expect? (e.g. vomiting, diabetes, overdose, COPD.)</li>
+      <li><strong>Acidaemia or alkalaemia?</strong> pH &lt; 7.35 or &gt; 7.45. A normal pH does not exclude a disorder (mixed disorders can cancel out).</li>
+      <li><strong>Primary process.</strong> Which of PaCO₂ and HCO₃⁻ moves in the direction that explains the pH?</li>
+      <li><strong>Compensation.</strong> Is the other variable where the rules predict? If not, there is a second primary disorder.</li>
+      <li><strong>Anion gap</strong> (always, and correct it for albumin) — a raised gap means a high anion gap metabolic acidosis (HAGMA) even when the pH looks normal.</li>
+      <li><strong>Delta ratio</strong> in a HAGMA, to look for a coexisting normal-gap acidosis or metabolic alkalosis.</li>
+      <li><strong>Osmolar gap</strong> in an unexplained HAGMA (toxic alcohols).</li>
+      <li><strong>Reconcile with the clinical picture</strong> and other tests (lactate, ketones, renal function, urinary electrolytes).</li>
+    </ol>
+  </div>
 
-        function populateFluidSelects() {
-            const opts = Object.entries(FLUIDS).map(([k,v]) => `<option value="${k}">${v.name}</option>`).join('');
-            
-            ['fluid-select', 'comp-select-a', 'comp-select-b'].forEach(id => {
-                const el = document.getElementById(id);
-                el.innerHTML = opts;
-                if(id === 'comp-select-b') el.value = 'plasmalyte';
-            });
+  <div class="card">
+    <h3>Anion gap (AG)</h3>
+    <div class="formula"><b>AG</b>        = [Na⁺] − ([Cl⁻] + [HCO₃⁻])                  typical ≈ 8–12 mmol/L (analyser-dependent)
+<b>AG with K⁺</b>  = ([Na⁺] + [K⁺]) − ([Cl⁻] + [HCO₃⁻])          ≈ 4 mmol/L higher than the AG without K⁺</div>
+    <p>The AG is not a real gap — plasma is electroneutral. It represents anions that are not routinely measured: mainly the negative charge on <strong>albumin</strong>, plus phosphate, sulphate and organic anions, minus unmeasured cations (Ca²⁺, Mg²⁺). Whether K⁺ is included is a matter of local convention; be consistent with your laboratory's reference range.</p>
+    <h4>Correcting for albumin (Figge et al.)</h4>
+    <div class="formula"><b>Corrected AG</b> = AG + 0.25 × ( normal albumin − measured albumin )      [albumin in g/L]
+This site uses normal albumin = 40 g/L:   corrected AG = AG + 0.25 × (40 − albumin)</div>
+    <p>Figge and colleagues found that each 1 g/L fall in albumin lowers the observed AG by about 0.25 mEq/L (2.5 per 10 g/L). Hypoalbuminaemia is very common in acutely unwell patients and can hide a significant HAGMA. Figge et al. expressed the correction relative to "normal albumin"; sources use reference values between 40 and 44 g/L, which changes the corrected AG by up to 1 mmol/L.</p>
+    <h4>Causes</h4>
+    <div class="grid g2">
+      <div><strong>High AG metabolic acidosis (HAGMA)</strong><ul class="small"><li>Lactate (shock, sepsis, ischaemia, metformin, seizures)</li><li>Ketones (diabetic, alcoholic, starvation)</li><li>Renal failure (sulphate, phosphate, urate and other anions)</li><li>Toxins: methanol, ethylene glycol, salicylate, paracetamol (pyroglutamic acid / 5-oxoproline), iron, cyanide, others</li></ul></div>
+      <div><strong>Normal AG (hyperchloraemic) metabolic acidosis (NAGMA)</strong><ul class="small"><li>Chloride load: large volumes of 0.9% saline</li><li>Gastrointestinal bicarbonate loss: diarrhoea, ileostomy, fistulae, ureteric diversion</li><li>Renal tubular acidosis; carbonic anhydrase inhibitors (acetazolamide)</li><li>Recovery phase of DKA (ketoanions lost in urine)</li></ul></div>
+    </div>
+  </div>
 
-            document.getElementById('fluid-select').onchange = (e) => { state.selectedFluid = e.target.value; resetStewart(); };
-            document.getElementById('comp-select-a').onchange = updateComparatorUI;
-            document.getElementById('comp-select-b').onchange = updateComparatorUI;
-        }
+  <div class="card">
+    <h3>Delta ratio (Δ/Δ) and delta gap</h3>
+    <div class="formula"><b>Delta ratio</b> = (AG − normal AG) ÷ (normal HCO₃⁻ − measured HCO₃⁻)  =  (AG − 12) ÷ (24 − HCO₃⁻)
+<b>Delta gap</b>   = (AG − 12) − (24 − HCO₃⁻)          (same information expressed as a difference)</div>
+    <p>In a pure HAGMA, each mmol/L of acid anion added should lower HCO₃⁻ by roughly one mmol/L, so the ratio should be about 1–2. Use the albumin-corrected AG.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Delta ratio</th><th>Commonly taught interpretation</th></tr>
+      <tr><td>&lt; 0.4</td><td>Hyperchloraemic normal-AG acidosis</td></tr>
+      <tr><td>0.4–0.8</td><td>Combined HAGMA and NAGMA (note: the ratio is often &lt; 1 in acidosis of renal failure)</td></tr>
+      <tr><td>1–2</td><td>Uncomplicated HAGMA. Lactic acidosis often around 1.6; DKA is more often close to 1 because ketoanions are lost in the urine</td></tr>
+      <tr><td>&gt; 2</td><td>HAGMA with a pre-existing high HCO₃⁻: concurrent metabolic alkalosis, or compensation for a chronic respiratory acidosis</td></tr>
+    </table></div>
+    <div class="callout warn small"><strong>Caveats.</strong> These bands are rules of thumb and sources quote slightly different cut-offs (between 0.8 and 1 there is a grey zone). The ratio inherits the wide normal range of the AG and of HCO₃⁻, it is unreliable when the change in HCO₃⁻ is small, and non-bicarbonate buffering and renal handling of anions differ between acids (Rastegar 2007). Treat it as a prompt to look for a second process, not as proof.</div>
+  </div>
 
-        function switchTab(tab) {
-            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
-            document.getElementById(`view-${tab}`).classList.remove('hidden');
-            
-            // Reset Nav Styles
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                btn.className = "nav-btn px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all bg-white text-slate-500 hover:bg-slate-100 border border-slate-200";
-            });
-            
-            // Active Nav Style
-            const activeBtn = document.getElementById(`tab-${tab}`);
-            activeBtn.className = "nav-btn px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all bg-slate-800 text-white shadow-lg";
-            
-            state.currentTab = tab;
-            lucide.createIcons();
-        }
+  <div class="card">
+    <h3>Expected compensation</h3>
+    <p>Compensation returns pH <em>towards</em> normal but rarely to normal (chronic respiratory alkalosis is the usual exception). A value outside the predicted range implies a second primary disorder. Rules below are the widely used "Boston" approximations (Albert, Dell &amp; Winters 1967; Narins &amp; Emmett 1980; Berend et al. 2014), written for PaCO₂ in mmHg with kPa equivalents.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Primary disorder</th><th>Expected compensation</th><th>In kPa</th></tr>
+      <tr><td>Metabolic acidosis</td><td><strong>Winter's formula:</strong> expected PaCO₂ = 1.5 × [HCO₃⁻] + 8 (± 2) mmHg</td><td>÷ 7.5 → e.g. HCO₃⁻ 10 → 23 ± 2 mmHg ≈ 3.1 (2.8–3.3) kPa</td></tr>
+      <tr><td>Metabolic alkalosis</td><td>Expected PaCO₂ ≈ 0.7 × [HCO₃⁻] + 20 (± 5) mmHg <br><span class="small muted">(equivalently, PaCO₂ rises ≈ 0.7 mmHg per 1 mmol/L rise in HCO₃⁻). Hypoventilation is limited by hypoxaemia; sources differ on the upper limit.</span></td><td>e.g. HCO₃⁻ 36 → 45 ± 5 mmHg ≈ 6.0 (5.4–6.7) kPa</td></tr>
+      <tr><td>Acute respiratory acidosis</td><td>HCO₃⁻ rises ≈ 1 mmol/L per 10 mmHg rise in PaCO₂ above 40</td><td>≈ 1 per 1.33 kPa above 5.3</td></tr>
+      <tr><td>Chronic respiratory acidosis (renal compensation over ~3–5 days)</td><td>HCO₃⁻ rises ≈ 4 mmol/L per 10 mmHg (some sources 3.5)</td><td>≈ 4 per 1.33 kPa</td></tr>
+      <tr><td>Acute respiratory alkalosis</td><td>HCO₃⁻ falls ≈ 2 mmol/L per 10 mmHg fall in PaCO₂</td><td>≈ 2 per 1.33 kPa below 5.3</td></tr>
+      <tr><td>Chronic respiratory alkalosis</td><td>HCO₃⁻ falls ≈ 5 mmol/L per 10 mmHg (some sources 4–5)</td><td>≈ 5 per 1.33 kPa</td></tr>
+    </table></div>
+    <p class="small muted">"Normal" values assumed: PaCO₂ 40 mmHg (5.3 kPa), HCO₃⁻ 24 mmol/L. The calculator below applies ± 2 mmol/L around the respiratory rules as a pragmatic tolerance.</p>
+  </div>
 
-        // --- STEWART ENGINE ---
+  <div class="card">
+    <h3>Osmolar gap</h3>
+    <div class="formula"><b>Calculated osmolality</b> (UK units, mmol/L) = 2 × [Na⁺] + [glucose] + [urea]   (+ [ethanol] if known)
+<b>Osmolar gap</b> = measured osmolality − calculated osmolality</div>
+    <ul>
+      <li>Measured osmolality must be by <strong>freezing-point depression</strong>; vapour-pressure osmometry misses volatile alcohols.</li>
+      <li>A gap above about <strong>10 mOsm/kg</strong> is commonly treated as raised, but the normal spread is wide: one study found a mean of −2 ± 6 mOsm and showed that absolute values depend heavily on the equation used (Hoffman et al. 1993).</li>
+      <li>Causes of a raised gap: toxic alcohols (methanol, ethylene glycol), ethanol, isopropanol, mannitol, glycine, propylene glycol; modest rises also occur in DKA, alcoholic ketoacidosis, lactic acidosis and renal failure.</li>
+      <li><strong>Timing matters:</strong> early after toxic alcohol ingestion the osmolar gap is high and the AG normal; as the parent alcohol is metabolised to toxic acids the osmolar gap falls and the AG rises. A normal osmolar gap therefore does <em>not</em> exclude toxic alcohol poisoning (Kraut &amp; Kurtz 2008; Lynd et al. 2008).</li>
+    </ul>
+  </div>
+</section>
 
-        function togglePlay() {
-            state.isPlaying = !state.isPlaying;
-            const btn = document.getElementById('play-btn');
-            if (state.isPlaying) {
-                btn.innerHTML = '<i data-lucide="pause" size="16"></i> Pause';
-                btn.classList.replace('bg-blue-600', 'bg-amber-500');
-                btn.classList.replace('hover:bg-blue-700', 'hover:bg-amber-600');
-                simInterval = setInterval(runSimLoop, 50);
-            } else {
-                btn.innerHTML = '<i data-lucide="play" size="16"></i> Infuse';
-                btn.classList.replace('bg-amber-500', 'bg-blue-600');
-                btn.classList.replace('hover:bg-amber-600', 'hover:bg-blue-700');
-                clearInterval(simInterval);
-            }
-            lucide.createIcons();
-        }
+<!-- ============================ BASE EXCESS ============================ -->
+<section class="block" id="base-excess">
+  <div class="kicker">Approach 2</div>
+  <h2>Base excess (Copenhagen) approach</h2>
+  <div class="card">
+    <p>Base excess is the amount of strong acid (or base, if negative) needed to titrate a sample back to pH 7.40 at PCO₂ 5.3 kPa (40 mmHg) and 37 °C. Because it is defined at a standard PCO₂, it isolates the <strong>metabolic</strong> component. The <strong>standard base excess (SBE)</strong> models the whole extracellular fluid (blood diluted by interstitial fluid, effective haemoglobin about 3 g/dL), so it is less affected by acute PCO₂ changes than whole-blood base excess.</p>
+    <div class="formula"><b>Standard base excess</b> (Van Slyke equation, a widely used form):
+SBE = 0.93 × ( [HCO₃⁻] − 24.4 + 14.83 × (pH − 7.40) )        mmol/L</div>
+    <p class="small muted">Siggaard-Andersen 1977. Analyser manufacturers implement slightly different versions, so the SBE on your blood gas may differ by a fraction of a mmol/L from this calculation.</p>
+    <p>SBE tells you <em>how much</em> metabolic acidosis or alkalosis is present, but not <em>why</em>. Partitioning it does that.</p>
+  </div>
 
-        function toggleSepsis() {
-            state.sepsisMode = !state.sepsisMode;
-            const toggle = document.getElementById('sepsis-toggle');
-            const dot = document.getElementById('sepsis-indicator');
-            if (state.sepsisMode) {
-                toggle.classList.replace('bg-slate-300', 'bg-red-500');
-                dot.style.transform = 'translateX(20px)';
-            } else {
-                toggle.classList.replace('bg-red-500', 'bg-slate-300');
-                dot.style.transform = 'translateX(0)';
-            }
-        }
+  <div class="card">
+    <h3>Partitioned base excess <span class="tag simplified">Simplified</span></h3>
+    <p>Story, Morimatsu and Bellomo (2004) proposed a simplified bedside version of the Fencl–Stewart approach, building on earlier work by Gilfix et al. (1993). It splits the SBE into the parts explained by sodium and chloride, by albumin, and a remainder due to unmeasured ions (including lactate).</p>
+    <div class="formula"><b>Sodium–chloride effect</b>  = [Na⁺] − [Cl⁻] − 38                  (mEq/L)
+<b>Albumin effect</b>          = 0.25 × (42 − [albumin g/L])           (mEq/L)
+<b>Unmeasured ion effect</b>   = SBE − (Na–Cl effect) − (albumin effect)</div>
+    <ul>
+      <li><strong>Negative</strong> values are acidifying; <strong>positive</strong> values are alkalinising.</li>
+      <li>Na–Cl effect: a low Na⁺ − Cl⁻ difference (hyperchloraemia or hyponatraemia relative to chloride) is acidifying, e.g. after 0.9% saline.</li>
+      <li>Albumin effect: <strong>hypoalbuminaemia is alkalinising</strong> — a fall of 10 g/L contributes about +2.5 mEq/L.</li>
+      <li>Unmeasured ion effect: a strongly negative value suggests unmeasured anions (lactate, ketones, uraemic anions, toxins). Compare it with the measured lactate: if it is much more negative than the lactate explains, look for other anions.</li>
+    </ul>
+    <div class="callout warn small">This is a <strong>simplified</strong> method. Story et al. used a reference Na–Cl difference of 38 and albumin of 42 g/L; Gilfix and Fencl used fuller versions that also correct chloride for free-water changes and include phosphate. Different versions give somewhat different numbers, and the AG correction above uses 40 g/L rather than 42 g/L. Use partitioning to understand mechanisms rather than as precise quantities.</div>
+    <h4>Worked example: saline-associated acidosis</h4>
+    <p>Na 141, Cl 116, HCO₃⁻ 17, pH 7.33, albumin 34 g/L:</p>
+    <div class="formula">SBE = 0.93 × (17 − 24.4 + 14.83 × (7.33 − 7.40))         ≈ −7.8
+Na–Cl effect = 141 − 116 − 38                           = −13   (acidifying)
+Albumin effect = 0.25 × (42 − 34)                        = +2    (alkalinising)
+Unmeasured ions = −7.8 − (−13) − 2                       ≈ +3    → no unmeasured anion acidosis</div>
+    <p>The whole base deficit is explained by hyperchloraemia, partly offset by low albumin.</p>
+  </div>
+</section>
 
-        function resetStewart() {
-            state.isPlaying = false;
-            clearInterval(simInterval);
-            const btn = document.getElementById('play-btn');
-            btn.innerHTML = '<i data-lucide="play" size="16"></i> Infuse';
-            btn.classList.replace('bg-amber-500', 'bg-blue-600');
-            
-            // Re-read current slider values to reset to "User's Base State"
-            const currentLac = parseFloat(document.getElementById('lactate-slider').value);
-            const currentCO2 = parseFloat(document.getElementById('paco2-slider').value);
-            
-            state.sim = {
-                plasma: 0, isf: 0, urine: 0,
-                na: BASE_NA, cl: BASE_CL, k: BASE_K, hco3: 24, alb: BASE_ALB, lac: currentLac,
-                paco2_kpa: currentCO2,
-                ph: 7.4, sid: 40, be: 0, sig: 0
-            };
-            recalcPhysics(); 
-            renderStewartUI();
-            lucide.createIcons();
-        }
+<!-- ============================ STEWART ============================ -->
+<section class="block" id="stewart">
+  <div class="kicker">Approach 3</div>
+  <h2>Stewart physicochemical approach</h2>
+  <div class="card">
+    <p>Peter Stewart (1981, 1983) applied three physical laws to plasma: <strong>electroneutrality</strong>, <strong>conservation of mass</strong> and the <strong>dissociation equilibria</strong> of water, the weak acids and CO₂. Solving these simultaneously shows that [H⁺] (and therefore pH) is determined by only three <strong>independent variables</strong>:</p>
+    <div class="grid g3">
+      <div class="callout info"><strong>PaCO₂</strong><br><span class="small">Set by ventilation relative to CO₂ production.</span></div>
+      <div class="callout info"><strong>Strong ion difference (SID)</strong><br><span class="small">Strong ions are fully dissociated at physiological pH: Na⁺, K⁺, Ca²⁺, Mg²⁺, Cl⁻, lactate⁻ and others. A <strong>lower</strong> SID is acidifying; a <strong>higher</strong> SID is alkalinising.</span></div>
+      <div class="callout info"><strong>A<sub>TOT</sub> (total weak acid)</strong><br><span class="small">Mainly albumin and phosphate, present as dissociated (A⁻) and undissociated (AH) forms. A <strong>higher</strong> A<sub>TOT</sub> is acidifying; <strong>hypoalbuminaemia is alkalinising</strong>.</span></div>
+    </div>
+    <p>Everything else — [H⁺], [OH⁻], [HCO₃⁻], [CO₃²⁻], [A⁻] and [AH] — is a <strong>dependent variable</strong>. In this framework bicarbonate does not cause anything: it changes because SID, A<sub>TOT</sub> or PCO₂ change. Water dissociation is the effectively limitless source of H⁺, so "adding or removing H⁺" is not the mechanism; changing the independent variables is.</p>
+  </div>
 
-        function runSimLoop() {
-            const fluid = FLUIDS[state.selectedFluid];
-            const dt = 0.5; 
-            const infusionRate = 0.05; // L/min simulation speed
-            const infused = infusionRate * dt;
-            
-            // 1. Add Volume to Plasma
-            state.sim.plasma += infused;
+  <div class="card">
+    <h3>Apparent SID, effective SID and the strong ion gap</h3>
+    <div class="formula"><b>SIDa</b> (apparent) = [Na⁺] + [K⁺] + 2×[Ca²⁺] + 2×[Mg²⁺] − [Cl⁻] − [lactate⁻]     (mEq/L)
+         Ca²⁺ = ionised calcium; Mg often total magnesium (ionised Mg is rarely available)
+         Normal often quoted ≈ 40–42 mEq/L
 
-            // 2. Capillary Leak Dynamics
-            const leakRate = state.sepsisMode ? 0.6 : 0.1; // Higher leak in sepsis
-            
-            if (fluid.distribution === 'ecf') {
-                // ECF fluids distribute between Plasma and ISF based on volume ratios
-                const grad = (state.sim.plasma / BASE_PV) - (state.sim.isf / BASE_ISF);
-                if (grad > 0) { 
-                    const flux = grad * leakRate * dt; 
-                    state.sim.plasma -= flux; 
-                    state.sim.isf += flux; 
-                }
-            } else if (fluid.distribution === 'plasma_expand') {
-                // Oncotic Pull (Albumin 20%)
-                if (state.sim.isf > -2) { 
-                    const pull = 0.08 * dt; 
-                    state.sim.plasma += pull; 
-                    state.sim.isf -= pull; 
-                }
-            } else if (fluid.distribution === 'tbw') {
-                // D5W distributes everywhere (simplified as loss from plasma)
-                const cellularUptake = infused * 0.6; 
-                state.sim.plasma -= cellularUptake;
-                // Note: We don't visualize ICF volume here, just 'disappearance' from ECF
-            }
+<b>SIDe</b> (effective, Figge–Fencl) = [HCO₃⁻] + [A⁻]
+   [Alb⁻] = albumin (g/L) × (0.123 × pH − 0.631)
+   [Pi⁻]  = phosphate (mmol/L) × (0.309 × pH − 0.469)
+   SIDe   = [HCO₃⁻] + [Alb⁻] + [Pi⁻]
 
-            // 3. Renal Excretion (Simple)
-            const volStatus = state.sim.plasma / BASE_PV;
-            const urineOutput = (volStatus > 0.1 ? 0.015 : 0.001) * dt;
-            state.sim.plasma -= urineOutput;
-            state.sim.urine += urineOutput;
+<b>SIG</b> (strong ion gap) = SIDa − SIDe</div>
+    <p>SIDa is what the measured strong ions say the SID should be; SIDe is the negative charge actually carried by the buffer base (bicarbonate plus weak acids). If they differ, there must be <strong>unmeasured strong anions</strong> (or cations). Unlike the AG, the SIG already accounts for albumin, phosphate and lactate, so a raised SIG points to <em>other</em> unmeasured anions: ketoanions, uraemic anions, toxic-alcohol metabolites, salicylate-related organic acids and so on (Kellum et al. 1995; Kellum 2000).</p>
+    <div class="callout warn small"><strong>What is a "normal" SIG?</strong> In health the SIG is small, but published reference values differ considerably between studies — from close to zero to several mEq/L — because analysers differ and because small measurement errors in Na⁺ and Cl⁻ are amplified. With the default assumptions on this site (ionised Ca 1.2, Mg 0.9, phosphate 1.0 mmol/L) a "textbook normal" set of results gives a SIG of a few mEq/L. Trends, and large values, are more informative than a single small positive value.</div>
+    <h4>Worked example (DKA case below)</h4>
+    <p>Na 132, K 5.6, Cl 96, lactate 2.0, HCO₃⁻ 8, pH 7.23, albumin 42 g/L; assumed ionised Ca 1.2, Mg 0.9, phosphate 1.0:</p>
+    <div class="formula">SIDa = 132 + 5.6 + 2×1.2 + 2×0.9 − 96 − 2.0                 = 43.8 mEq/L
+Alb⁻ = 42 × (0.123 × 7.23 − 0.631)                         = 10.8
+Pi⁻  = 1.0 × (0.309 × 7.23 − 0.469)                        = 1.8
+SIDe = 8 + 10.8 + 1.8                                       = 20.6 mEq/L
+SIG  = 43.8 − 20.6                                          ≈ 23 mEq/L  → large unmeasured anion load (ketoanions)</div>
+  </div>
 
-            // 4. Mixing Physics (Concentrations)
-            const totalVol = state.sim.plasma + state.sim.isf + BASE_ECF;
-            const mix = 0.15; // Mixing coefficient
+  <div class="card">
+    <h3>Stewart classification of metabolic disturbances</h3>
+    <div class="table-wrap"><table>
+      <tr><th>Mechanism</th><th>Acidosis</th><th>Alkalosis</th></tr>
+      <tr><td>SID — water excess/deficit (dilutes or concentrates Na⁺ relative to the SID)</td><td>Water excess (dilutional, ↓Na⁺)</td><td>Water deficit (contraction, ↑Na⁺)</td></tr>
+      <tr><td>SID — chloride</td><td>Chloride excess (↑Cl⁻: saline, diarrhoea, RTA)</td><td>Chloride deficit (↓Cl⁻: vomiting, diuretics)</td></tr>
+      <tr><td>SID — unmeasured anions</td><td>↑ lactate, ketoanions, toxins, uraemic anions</td><td>—</td></tr>
+      <tr><td>A<sub>TOT</sub> — albumin</td><td>Hyperalbuminaemia (rare)</td><td>Hypoalbuminaemia (common)</td></tr>
+      <tr><td>A<sub>TOT</sub> — phosphate</td><td>Hyperphosphataemia (renal failure)</td><td>—</td></tr>
+    </table></div>
+    <p class="small muted">Adapted from Fencl et al. 2000 and Kellum &amp; Elbers, <em>Stewart's Textbook of Acid–Base</em>.</p>
+    <p>Two practical insights follow. First, a "normal" bicarbonate can hide two opposing processes (e.g. hyperchloraemic acidosis plus hypoalbuminaemic alkalosis) — Fencl et al. found that this was common in critically ill patients. Second, the acid–base effect of an intravenous fluid is predictable from its <strong>SID</strong> (see next section).</p>
+  </div>
+</section>
 
-            // Helper for mixing
-            const mixIon = (current, added) => current + (added - current) * (infused / totalVol) * mix;
-            
-            state.sim.na = mixIon(state.sim.na, fluid.na);
-            state.sim.cl = mixIon(state.sim.cl, fluid.cl);
-            state.sim.alb = mixIon(state.sim.alb, fluid.albuminContent);
-            // K stays roughly constant for simplicity unless fluid has K
-            state.sim.k = mixIon(state.sim.k, fluid.k);
+<!-- ============================ FLUIDS ============================ -->
+<section class="block" id="fluids">
+  <div class="kicker">Fluids</div>
+  <h2>Body fluid compartments and intravenous fluids</h2>
 
-            recalcPhysics();
-            renderStewartUI();
-        }
+  <div class="card">
+    <h3>Compartments (70 kg adult, approximate)</h3>
+    <div class="table-wrap"><table>
+      <tr><th>Compartment</th><th>Fraction</th><th class="num">Volume</th></tr>
+      <tr><td>Total body water</td><td>≈ 60% of body weight (lower in women, older people and obesity, ≈ 50%)</td><td class="num">≈ 42 L</td></tr>
+      <tr><td>Intracellular fluid (ICF)</td><td>≈ ⅔ of total body water</td><td class="num">≈ 28 L</td></tr>
+      <tr><td>Extracellular fluid (ECF)</td><td>≈ ⅓ of total body water</td><td class="num">≈ 14 L</td></tr>
+      <tr><td>— Interstitial fluid</td><td>≈ ¾ of ECF</td><td class="num">≈ 10.5 L</td></tr>
+      <tr><td>— Plasma</td><td>≈ ¼ of ECF</td><td class="num">≈ 3–3.5 L</td></tr>
+    </table></div>
+    <p class="small muted">Textbook approximations; individual values vary widely.</p>
+  </div>
 
-        function recalcPhysics() {
-            const s = state.sim;
-            
-            // 1. Calculate SID (Apparent)
-            // SIDa = [Na+] + [K+] + [Mg2+] + [Ca2+] - ([Cl-] + [Lac-])
-            // We approximate Mg+Ca as 6.6 mEq/L constant
-            const otherCations = 6.6; 
-            const sid_apparent = (s.na + s.k + otherCations) - (s.cl + s.lac);
-            s.sid = sid_apparent;
+  <div class="card">
+    <h3>Where does 1 litre go? The principle</h3>
+    <p>Water moves freely between the ICF and ECF to equalise <strong>osmolality</strong>. Sodium is largely confined to the ECF (Na⁺/K⁺-ATPase), and large proteins are largely confined to the plasma. So, in the classic idealised model:</p>
+    <ul>
+      <li><strong>Isotonic sodium-based crystalloids</strong> (0.9% saline, Hartmann's, Plasma-Lyte 148) stay in the ECF and distribute in proportion to plasma and interstitial volumes: roughly <strong>¼ (≈ 250 mL) intravascular</strong> and ¾ interstitial at equilibrium. Hartmann's is mildly hypotonic, so a small fraction also enters cells.</li>
+      <li><strong>5% glucose</strong>: the glucose is metabolised, leaving free water that distributes through total body water: roughly ⅔ (≈ 670 mL) intracellular, ⅓ (≈ 330 mL) extracellular, of which only <strong>≈ 1/12 (≈ 80 mL) remains intravascular</strong>. It is a source of water, not a resuscitation fluid.</li>
+      <li><strong>Human albumin solution 4.5%</strong> is approximately iso-oncotic: in the idealised model it initially stays largely intravascular. In practice the benefit is smaller — in the SAFE trial the ratio of albumin to saline volume given was approximately 1:1.4, not the 1:4 the simple model predicts (Finfer et al. 2004).</li>
+      <li><strong>Human albumin solution 20%</strong> is hyperoncotic: it draws interstitial water into the plasma, so the plasma volume expansion exceeds the volume infused (the magnitude depends on interstitial hydration and capillary integrity).</li>
+    </ul>
+    <div class="table-wrap"><table>
+      <tr><th>1 L of…</th><th class="num">Plasma</th><th class="num">Interstitial</th><th class="num">Intracellular</th></tr>
+      <tr><td>0.9% sodium chloride</td><td class="num">≈ 250 mL</td><td class="num">≈ 750 mL</td><td class="num">≈ 0</td></tr>
+      <tr><td>Hartmann's / Plasma-Lyte 148</td><td class="num">≈ 250 mL</td><td class="num">≈ 700–750 mL</td><td class="num">small (Hartmann's)</td></tr>
+      <tr><td>5% glucose</td><td class="num">≈ 80 mL</td><td class="num">≈ 250 mL</td><td class="num">≈ 670 mL</td></tr>
+      <tr><td>4.5% albumin (idealised)</td><td class="num">most, initially</td><td class="num">less</td><td class="num">≈ 0</td></tr>
+    </table></div>
+    <div class="callout warn small"><strong>Caveats.</strong> These are equilibrium figures from a static compartment model. Real distribution is <strong>time- and context-dependent</strong>: during and shortly after an infusion, plasma dilution is greater than this model predicts because distribution to the interstitium takes time; anaesthesia, hypotension, inflammation and renal function all change the kinetics (Hahn 2010). Use the numbers to understand principles, not to predict an individual patient's response.</div>
+    <h4>The revised Starling principle and the glycocalyx (briefly)</h4>
+    <ul>
+      <li>The endothelial <strong>glycocalyx</strong> is the main semipermeable barrier. The oncotic gradient that opposes filtration is between plasma and the small space <em>beneath</em> the glycocalyx, not the bulk interstitial fluid (Levick &amp; Michel 2010; Woodcock &amp; Woodcock 2012).</li>
+      <li>In most tissues there is <strong>no sustained reabsorption</strong> at the venous end of capillaries in the steady state; filtered fluid returns to the circulation mainly via <strong>lymph</strong>.</li>
+      <li>Fluid handling is <strong>context-sensitive</strong>: when capillary pressure is low (e.g. hypovolaemia), infused crystalloid is retained in the circulation relatively well; when capillary pressure is normal or high, both crystalloid and colloid filter out more readily (Chappell et al. 2008; Woodcock &amp; Woodcock 2012).</li>
+      <li>Inflammation, sepsis, surgery and hypervolaemia itself can damage the glycocalyx, increasing leak.</li>
+    </ul>
+  </div>
 
-            // 2. Calculate Atot (Weak Acids - Albumin & Phosphate)
-            // Albumin charge approx 0.25 * [Alb g/L] (simplification)
-            const atot = s.alb * 0.25; 
-            
-            // 3. Calculate HCO3- 
-            // In Stewart: SID - Atot = HCO3- (roughly, ignoring CO3--)
-            // We subtract Atot from SID to see what's left for Bicarb
-            s.hco3 = Math.max(0.1, sid_apparent - atot); // clamp to 0.1 to avoid log(0)
-            
-            // 4. Calculate pH using Henderson-Hasselbalch 
-            // pH = 6.1 + log(HCO3 / (0.03 * PaCO2_mmHg))
-            // 1 kPa = 7.5 mmHg. 0.03 * 7.5 = 0.225
-            const paco2_mmhg = s.paco2_kpa * 7.5;
-            s.ph = 6.1 + Math.log10(s.hco3 / (0.0301 * paco2_mmhg));
+  <div class="card">
+    <h3>Composition of UK intravenous fluids (per litre)</h3>
+    <div class="table-wrap"><table id="fluid-table">
+      <tr><th>Fluid</th><th class="num">Na⁺</th><th class="num">K⁺</th><th class="num">Cl⁻</th><th class="num">Ca²⁺</th><th class="num">Mg²⁺</th><th>Buffer / other</th><th class="num">Osmolarity*</th><th class="num">In vivo SID†</th></tr>
+      <tr><td>Plasma (for comparison)</td><td class="num">135–145</td><td class="num">3.5–5.3</td><td class="num">95–108</td><td class="num">2.2–2.6 (total)</td><td class="num">0.7–1.0</td><td>HCO₃⁻ 22–26; albumin 35–50 g/L</td><td class="num">275–295 mOsm/kg</td><td class="num">≈ 40–42</td></tr>
+      <tr><td>Sodium chloride 0.9%</td><td class="num">154</td><td class="num">0</td><td class="num">154</td><td class="num">0</td><td class="num">0</td><td>—</td><td class="num">308</td><td class="num"><strong>0</strong></td></tr>
+      <tr><td>Compound sodium lactate (Hartmann's)</td><td class="num">131</td><td class="num">5</td><td class="num">111</td><td class="num">2</td><td class="num">0</td><td>Lactate 29</td><td class="num">≈ 278</td><td class="num">≈ 27–29‡</td></tr>
+      <tr><td>Plasma-Lyte 148 (in water)</td><td class="num">140</td><td class="num">5</td><td class="num">98</td><td class="num">0</td><td class="num">1.5</td><td>Acetate 27, gluconate 23</td><td class="num">≈ 294–295</td><td class="num">≈ 50</td></tr>
+      <tr><td>Glucose 5%</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td>Glucose 50 g/L</td><td class="num">≈ 278</td><td class="num">0</td></tr>
+      <tr><td>Sodium chloride 0.18% / glucose 4%</td><td class="num">30</td><td class="num">0</td><td class="num">30</td><td class="num">0</td><td class="num">0</td><td>Glucose 40 g/L</td><td class="num">≈ 282</td><td class="num">0</td></tr>
+      <tr><td>Sodium bicarbonate 1.26%</td><td class="num">150</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td>HCO₃⁻ 150</td><td class="num">300</td><td class="num">150</td></tr>
+      <tr><td>Sodium bicarbonate 8.4%</td><td class="num">1000</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td>HCO₃⁻ 1000</td><td class="num">2000</td><td class="num">1000</td></tr>
+      <tr><td>Human albumin solution 4.5%</td><td colspan="5">Electrolyte content is product-specific (check the SmPC); chloride is typically lower than in 0.9% saline</td><td>Albumin 45 g/L</td><td class="num">≈ iso-osmotic</td><td class="num">product-specific</td></tr>
+      <tr><td>Human albumin solution 20%</td><td colspan="5">Product-specific; often described as "salt-poor"</td><td>Albumin 200 g/L</td><td class="num">product-specific</td><td class="num">product-specific</td></tr>
+    </table></div>
+    <p class="small muted">All concentrations in mmol/L. Values are those commonly listed in UK manufacturers' summaries of product characteristics and the BNF; minor differences exist between manufacturers, so check the product you are using.<br>
+    * Theoretical osmolarity (mOsm/L), calculated from the constituents. Measured osmolality is lower because of incomplete dissociation (osmotic coefficient ≈ 0.93): for example 0.9% saline measures ≈ 286 mOsm/kg. Hartmann's is mildly hypotonic relative to plasma.<br>
+    † "In vivo" (effective) SID assumes that the organic anions (lactate, acetate, gluconate) are metabolised and therefore behave like bicarbonate; gluconate is metabolised more slowly and partly excreted, so the true effective SID of Plasma-Lyte 148 may be lower.<br>
+    ‡ 131 + 5 + 2×2 − 111 = 29; values of 27–28 are also quoted, depending on whether and how calcium is counted.</p>
+  </div>
 
-            // 5. Base Excess approximation
-            // BE = (HCO3 - 24.4) + (14.8 * (pH - 7.4))
-            s.be = (s.hco3 - 24.4) + (14.8 * (s.ph - 7.4));
-        }
+  <div class="card">
+    <h3>Why 0.9% saline causes a hyperchloraemic acidosis</h3>
+    <p>0.9% saline contains equal concentrations of Na⁺ and Cl⁻ (154 mmol/L each), so its <strong>SID is zero</strong>. Infusing it moves the plasma SID towards zero: chloride rises proportionally more than sodium (plasma Cl⁻ ≈ 100 rises towards 154, while Na⁺ ≈ 140 barely changes). A fall in SID at a fixed PCO₂ raises [H⁺] and lowers [HCO₃⁻] — a <strong>hyperchloraemic (normal anion gap) metabolic acidosis</strong>, demonstrated in volunteers and surgical patients (Scheingraber et al. 1999).</p>
+    <p>The traditional explanation is "dilution of bicarbonate", but bicarbonate is a dependent variable; the Stewart explanation is that the infusion lowers SID.</p>
+    <h4>What SID makes a fluid "balanced"? (Morgan's work)</h4>
+    <p>Infusion also dilutes A<sub>TOT</sub> (albumin), which on its own is alkalinising. Morgan, Venkatesh and Hall (2002) showed in in-vitro haemodilution that a crystalloid with SID ≈ <strong>24 mEq/L</strong> — about the normal plasma bicarbonate — leaves pH unchanged; a lower SID is acidifying and a higher SID alkalinising. Morgan and Venkatesh (2003) used this to discuss the design of "balanced" crystalloids. Hartmann's (effective SID ≈ 28) is close to neutral; Plasma-Lyte 148 (≈ 50, if acetate and gluconate are fully metabolised) is mildly alkalinising in large volumes; 0.9% saline (0) is acidifying.</p>
+    <h4>Does it matter clinically?</h4>
+    <p>Large randomised trials comparing balanced crystalloids with saline in critically ill adults have reported different results: SMART (Semler et al. 2018) found a small reduction in a composite of major adverse kidney events with balanced fluids, whereas PLUS (Finfer et al. 2022) found no difference in 90-day mortality or kidney outcomes. Follow your local and national guidance (in the UK, NICE guideline CG174 covers intravenous fluid therapy in adults in hospital).</p>
+    <p><a href="#sandbox" onclick="openSubtab('comparator')">Try the fluid comparator →</a></p>
+  </div>
+</section>
 
-        function renderStewartUI() {
-            const s = state.sim;
-            
-            // Update Stats
-            const phEl = document.getElementById('stat-ph');
-            phEl.innerText = s.ph.toFixed(2);
-            phEl.className = `font-mono font-bold text-2xl ${s.ph < 7.35 ? 'text-red-400' : s.ph > 7.45 ? 'text-blue-400' : 'text-green-400'}`;
-            
-            document.getElementById('stat-sid').innerText = s.sid.toFixed(1);
-            document.getElementById('stat-hco3').innerText = s.hco3.toFixed(1);
-            document.getElementById('stat-lac').innerText = s.lac.toFixed(1);
-            document.getElementById('stat-paco2-disp').innerText = s.paco2_kpa.toFixed(1) + " kPa";
-            
-            const beEl = document.getElementById('stat-be');
-            beEl.innerText = (s.be > 0 ? "+" : "") + s.be.toFixed(1);
-            beEl.className = `font-mono font-bold ${s.be < -2 ? 'text-red-400' : s.be > 2 ? 'text-blue-400' : 'text-white'}`;
+<!-- ============================ SIMULATORS ============================ -->
+<section class="block" id="sandbox">
+  <div class="kicker">Interactive</div>
+  <h2>Physiology simulators</h2>
+  <div class="callout note small"><strong>Teaching models, not predictions.</strong> These simulators use deliberately simple, transparent assumptions (listed under each one) to illustrate principles. They ignore renal excretion, ongoing losses, metabolism (except where stated), time course and individual variation.</div>
+  <div class="subtabs" role="tablist" id="subtabs">
+    <button role="tab" data-sub="stewart-sim" aria-selected="true">Stewart &amp; SID</button>
+    <button role="tab" data-sub="comparator" aria-selected="false">Fluid comparator</button>
+    <button role="tab" data-sub="kshift" aria-selected="false">Potassium shift</button>
+    <button role="tab" data-sub="starling" aria-selected="false">Frank–Starling</button>
+    <button role="tab" data-sub="bedside" aria-selected="false">Bedside scenarios</button>
+  </div>
 
-            // Update Volume Bars
-            document.getElementById('bar-plasma').style.height = `${Math.min(100, 20 + (s.plasma/3)*80)}%`;
-            document.getElementById('bar-edema').style.height = `${Math.min(100, 30 + (s.isf/5)*70)}%`;
-            document.getElementById('bar-urine').style.height = `${Math.min(100, (s.urine/2)*100)}%`;
+  <!-- Stewart simulator -->
+  <div id="sub-stewart-sim" class="subpanel">
+    <div class="grid g2">
+      <div class="card">
+        <h3 style="margin-top:0">Controls</h3>
+        <label class="field">Infusate
+          <select id="fluid-select"></select>
+        </label>
+        <div style="margin-top:12px">
+          <div class="small" style="display:flex;justify-content:space-between;font-weight:600"><span>Lactate (endogenous)</span><span><span id="lac-val">1.0</span> mmol/L</span></div>
+          <input type="range" id="lactate-slider" min="0.5" max="15" step="0.5" value="1.0" aria-label="Lactate">
+        </div>
+        <div style="margin-top:8px">
+          <div class="small" style="display:flex;justify-content:space-between;font-weight:600"><span>PaCO₂ (respiratory)</span><span><span id="paco2-val">5.3</span> kPa (<span id="paco2-mm">39.8</span> mmHg)</span></div>
+          <input type="range" id="paco2-slider" min="2.0" max="10.0" step="0.1" value="5.3" aria-label="PaCO2">
+          <div class="small muted" style="display:flex;justify-content:space-between"><span>Hyperventilation</span><span>Retention</span></div>
+        </div>
+        <div class="switch" style="margin-top:10px"><label for="leak-toggle">Capillary leak (illustrative)</label><input type="checkbox" id="leak-toggle"></div>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn primary" id="play-btn" type="button">▶ Infuse</button>
+          <button class="btn" id="reset-btn" type="button">↺ Reset</button>
+        </div>
+        <div class="small">Volume infused: <strong id="vol-infused">0.00</strong> L <span class="muted">(max <span id="vol-max">4</span> L)</span></div>
+        <div class="stat-grid" style="margin-top:12px">
+          <div class="stat"><div class="k">pH</div><div class="v" id="stat-ph">7.40</div></div>
+          <div class="stat"><div class="k">HCO₃⁻</div><div class="v" id="stat-hco3">24.0</div></div>
+          <div class="stat"><div class="k">SBE</div><div class="v" id="stat-be">0.0</div></div>
+          <div class="stat"><div class="k">SIDa</div><div class="v" id="stat-sid">41</div></div>
+          <div class="stat"><div class="k">SIDe</div><div class="v" id="stat-side">37</div></div>
+          <div class="stat"><div class="k">Albumin g/L</div><div class="v" id="stat-alb">40</div></div>
+          <div class="stat"><div class="k">Na⁺</div><div class="v" id="stat-na">140</div></div>
+          <div class="stat"><div class="k">Cl⁻</div><div class="v" id="stat-cl">106</div></div>
+        </div>
+        <h4>Where has the fluid gone? (change from baseline)</h4>
+        <div class="vbar"><span>Plasma</span><div class="track"><div class="fill" id="bar-plasma" style="background:var(--plasma)"></div></div><span class="val" id="val-plasma">0 mL</span></div>
+        <div class="vbar"><span>Interstitium</span><div class="track"><div class="fill" id="bar-isf" style="background:var(--isf)"></div></div><span class="val" id="val-isf">0 mL</span></div>
+        <div class="vbar"><span>Intracellular</span><div class="track"><div class="fill" id="bar-icf" style="background:var(--icf)"></div></div><span class="val" id="val-icf">0 mL</span></div>
+        <p class="small muted">Bars span −1.5 to +1.5 L (clipped beyond).</p>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">Gamblegram</h3>
+        <p class="small muted" style="margin-top:-6px">Plasma is electroneutral: the two columns are always equal in height. Watch what fills the gap as SID changes.</p>
+        <div class="svg-box"><svg id="gamble" viewBox="0 0 320 450" role="img" aria-label="Gamblegram of plasma cations and anions"></svg></div>
+        <div class="legend"><span><i style="background:var(--na)"></i>Na⁺</span><span><i style="background:var(--oth)"></i>K⁺, Ca²⁺, Mg²⁺</span><span><i style="background:var(--cl)"></i>Cl⁻</span><span><i style="background:var(--lac)"></i>Lactate⁻</span><span><i style="background:var(--xa)"></i>Other unmeasured anions</span><span><i style="background:var(--alb)"></i>A⁻ (albumin, phosphate)</span><span><i style="background:var(--hco3)"></i>HCO₃⁻</span></div>
+      </div>
+    </div>
+    <details class="card small"><summary><strong>Model assumptions</strong></summary>
+      <ul>
+        <li>70 kg adult: total body water 42 L (ICF 28, ECF 14 = plasma 3.5 + interstitium 10.5). Baseline Na 140, K 4.0, Cl 106, ionised Ca 1.2, Mg 0.9 mmol/L, albumin 40 g/L, phosphate 1.0 mmol/L. Other unmeasured strong anions are set so that baseline pH is 7.40 at PaCO₂ 5.3 kPa.</li>
+        <li>Water distributes between ICF and ECF to equalise effective osmolality (taken as 2 × [Na⁺ + K⁺]); glucose is assumed to be metabolised. Ions stay in the ECF and mix completely.</li>
+        <li>Crystalloid that stays in the ECF is shared between plasma and interstitium in proportion to their volumes (¼ : ¾). The "capillary leak" switch lowers the plasma share to an <em>arbitrary illustrative</em> 15% and retains only 60% of infused albumin — real values are unknown and vary.</li>
+        <li>Albumin: idealised so that infused albumin expands plasma as if iso-oncotic with 4.5% albumin (so 100 mL of 20% albumin expands plasma by ≈ 444 mL, drawn from the interstitium). The electrolyte content of albumin solutions is product-specific; here it is treated as plasma-like (acid–base neutral) so that only the albumin (A<sub>TOT</sub>) effect is shown.</li>
+        <li>Lactate in Hartmann's and acetate/gluconate in Plasma-Lyte are assumed to be fully metabolised (effective SID). The added CO₂ from bicarbonate is assumed to be exhaled: PaCO₂ is fixed at the slider value.</li>
+        <li>pH is solved from Stewart's electroneutrality using the Figge–Fencl expressions for albumin and phosphate charge and HCO₃⁻ = 0.0307 × PCO₂(mmHg) × 10<sup>(pH − 6.1)</sup>. SBE from the Van Slyke equation. No renal compensation.</li>
+      </ul>
+    </details>
+  </div>
 
-            // Update Gamblegram Heights
-            const h_na = s.na * SCALE;
-            const h_cl = s.cl * SCALE;
-            const h_alb = (s.alb * 0.25) * SCALE;
-            const h_lac = s.lac * SCALE;
-            const h_hco3 = s.hco3 * SCALE;
-            const h_sid = (s.hco3 + (s.alb*0.25)) * SCALE;
-            
-            // Cations
-            document.getElementById('gamble-na').style.height = `${h_na}px`;
-            document.getElementById('val-na').innerText = s.na.toFixed(0);
-            
-            // Anions
-            document.getElementById('gamble-cl').style.height = `${h_cl}px`;
-            document.getElementById('val-cl').innerText = s.cl.toFixed(0);
-            document.getElementById('gamble-alb').style.height = `${Math.max(20, h_alb)}px`;
-            document.getElementById('gamble-lac').style.height = `${Math.max(3, h_lac)}px`;
-            
-            // HCO3
-            document.getElementById('gamble-hco3').style.height = `${Math.max(10, h_hco3)}px`;
-            document.getElementById('val-hco3').innerText = s.hco3.toFixed(1);
+  <!-- Comparator -->
+  <div id="sub-comparator" class="subpanel hidden">
+    <div class="card">
+      <div class="grid g2">
+        <label class="field">Fluid A (solid line)<select id="comp-select-a"></select><span class="small muted" id="info-a"></span></label>
+        <label class="field">Fluid B (dashed line)<select id="comp-select-b"></select><span class="small muted" id="info-b"></span></label>
+      </div>
+      <div class="svg-box" style="margin-top:12px"><svg id="comp-chart" viewBox="0 0 640 360" role="img" aria-label="Predicted pH against volume infused"></svg></div>
+      <p class="small muted">Predicted pH as each fluid is added to a 70 kg adult's extracellular fluid (same model as the Stewart simulator: PaCO₂ fixed at 5.3 kPa, no renal compensation, organic anions metabolised). Note how a fluid with SID ≈ 24 keeps pH almost constant, as Morgan et al. showed: the "neutral" SID is about the plasma bicarbonate, not the plasma SID of ≈ 40, because infusion also dilutes albumin.</p>
+      <div class="table-wrap"><table id="comp-table"></table></div>
+    </div>
+  </div>
 
-            // SID Bracket
-            const bracket = document.getElementById('sid-bracket');
-            const label = document.getElementById('sid-label');
-            const topOffset = Math.max(20, h_alb) + Math.max(3, h_lac);
-            
-            bracket.style.height = `${h_sid}px`;
-            bracket.style.top = `-${topOffset}px`;
-            
-            label.innerText = `${s.sid.toFixed(0)}`;
-            // Center the label relative to the bracket
-            label.style.top = `-${(topOffset + h_sid/2) - 10}px`;
-        }
+  <!-- Potassium shift -->
+  <div id="sub-kshift" class="subpanel hidden">
+    <div class="grid g2">
+      <div class="card">
+        <h3 style="margin-top:0">Acid–base and plasma potassium</h3>
+        <label class="field">Type of acidosis
+          <select id="k-type">
+            <option value="mineral">Mineral (hyperchloraemic, e.g. HCl/NH₄Cl, saline)</option>
+            <option value="organic">Organic (lactic, keto) or respiratory</option>
+          </select>
+        </label>
+        <div style="margin-top:12px">
+          <div class="small" style="display:flex;justify-content:space-between;font-weight:600"><span>Extracellular pH</span><span id="micro-ph-val">7.40</span></div>
+          <input type="range" id="micro-ph-slider" min="6.90" max="7.60" step="0.01" value="7.40" aria-label="Extracellular pH">
+        </div>
+        <div class="stat-grid" style="margin-top:12px">
+          <div class="stat"><div class="k">Plasma K⁺ (start 4.0)</div><div class="v" id="micro-k-val-text">4.0</div></div>
+          <div class="stat"><div class="k">Plausible range</div><div class="v small" id="micro-k-range" style="font-size:.95rem">—</div></div>
+        </div>
+        <p class="small" id="k-note"></p>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">Mechanism</h3>
+        <ul class="small">
+          <li>In acute <strong>mineral (inorganic) acidosis</strong>, plasma K⁺ rises: on average about <strong>0.6 mmol/L per 0.1 fall in pH</strong>, but with a very wide range (≈ 0.2–1.7) (Adrogué &amp; Madias 1981).</li>
+          <li>The shift is mediated indirectly — a fall in extracellular pH and HCO₃⁻ reduces Na⁺/H⁺ exchange and Na⁺–HCO₃⁻ cotransport, lowering intracellular Na⁺ and Na⁺/K⁺-ATPase activity — rather than by a simple one-for-one H⁺/K⁺ swap.</li>
+          <li>In <strong>organic acidoses</strong> (lactic acidosis, ketoacidosis) and in respiratory acidosis the shift is much smaller and inconsistent, because the organic anion or CO₂ can enter cells with the H⁺.</li>
+          <li>In <strong>DKA</strong>, hyperkalaemia on presentation is due mainly to insulin deficiency and hypertonicity, and it coexists with <strong>total-body potassium depletion</strong>; plasma K⁺ falls with insulin treatment.</li>
+          <li>Alkalaemia tends to lower plasma K⁺; the effect is generally smaller and variable.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
 
-        // --- HAEMODYNAMICS ---
+  <!-- Starling -->
+  <div id="sub-starling" class="subpanel hidden">
+    <div class="grid g2">
+      <div class="card">
+        <h3 style="margin-top:0">Frank–Starling curve</h3>
+        <label class="field">Preload (LV end-diastolic pressure, mmHg): <span id="preload-val">10</span>
+          <input type="range" id="starling-preload" min="0" max="30" step="1" value="10"></label>
+        <label class="field" style="margin-top:10px">Contractility (relative): <span id="inotropy-val">1.0</span>
+          <input type="range" id="starling-inotropy" min="0.5" max="2.0" step="0.1" value="1.0"></label>
+        <div class="stat-grid" style="margin-top:12px">
+          <div class="stat"><div class="k">Stroke volume</div><div class="v" id="starling-sv-display">77 mL</div></div>
+          <div class="stat"><div class="k">Cardiac output (HR 72)</div><div class="v" id="starling-co-display">5.5 L/min</div></div>
+        </div>
+        <p class="small muted">An illustrative exponential curve (arbitrary shape, not patient data). On the steep part, more preload increases stroke volume ("fluid responsive"); on the flat part it mainly raises filling pressures, which favours oedema.</p>
+      </div>
+      <div class="card"><div class="svg-box"><svg id="starling-svg" viewBox="-50 -10 720 410" role="img" aria-label="Frank–Starling curve">
+        <line class="axis" x1="0" y1="350" x2="650" y2="350" stroke-width="2"/>
+        <line class="axis" x1="0" y1="350" x2="0" y2="0" stroke-width="2"/>
+        <text x="325" y="390" text-anchor="middle" font-size="16" class="muted-text">Preload (LVEDP)</text>
+        <text x="-175" y="-25" transform="rotate(-90)" text-anchor="middle" font-size="16" class="muted-text">Stroke volume</text>
+        <path id="starling-curve" fill="none" stroke="#db2777" stroke-width="4" stroke-linecap="round"></path>
+        <line id="guide-x" stroke="var(--faint)" stroke-dasharray="5,5"/>
+        <line id="guide-y" stroke="var(--faint)" stroke-dasharray="5,5"/>
+        <circle id="starling-point" r="8" fill="var(--surface)" stroke="#2563eb" stroke-width="4"></circle>
+      </svg></div></div>
+    </div>
+  </div>
 
-        function updateStarlingUI() {
-            const preload = document.getElementById('starling-preload').value;
-            const inotropy = document.getElementById('starling-inotropy').value;
-            
-            // Frank-Starling Equation Simulation
-            const maxSV = 110 * inotropy;
-            const currentSV = maxSV * (1 - Math.exp(-0.12 * preload));
-            
-            document.getElementById('starling-sv-display').innerText = currentSV.toFixed(0) + " mL";
-            
-            // Cardiac Output (Assuming HR 70 for base, simplified)
-            const co = (currentSV * 72) / 1000;
-            document.getElementById('starling-co-display').innerText = co.toFixed(1) + " L/min";
+  <!-- Bedside -->
+  <div id="sub-bedside" class="subpanel hidden">
+    <div class="grid g2">
+      <div class="card">
+        <h3 style="margin-top:0">Bedside scenarios <span class="tag">illustrative toy</span></h3>
+        <div class="btn-row">
+          <button class="btn" type="button" id="case-sepsis" onclick="setCase('sepsis')">Septic shock</button>
+          <button class="btn" type="button" id="case-dka" onclick="setCase('dka')">DKA</button>
+        </div>
+        <div class="stat-grid">
+          <div class="stat"><div class="k">Heart rate</div><div class="v" id="case-hr">120</div></div>
+          <div class="stat"><div class="k">MAP (mmHg)</div><div class="v" id="case-map">55</div></div>
+          <div class="stat"><div class="k">Lung auscultation</div><div class="v" id="case-lungs" style="font-size:1rem">Clear</div></div>
+        </div>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn" type="button" onclick="treatCase('fluid')">500 mL Plasma-Lyte 148</button>
+          <button class="btn" type="button" onclick="treatCase('norad')">Noradrenaline</button>
+        </div>
+        <p class="small muted">The responses are scripted to illustrate concepts (fluid responsiveness, capillary leak, vasopressors); they are not a physiological model.</p>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">Clinical log</h3>
+        <div id="case-log" class="small">Choose a scenario.</div>
+      </div>
+    </div>
+  </div>
+</section>
 
-            // Draw Curve
-            let d = "M 0 350 ";
-            for(let x=0; x<=35; x+=1) {
-                const y = maxSV * (1 - Math.exp(-0.12 * x));
-                // Scale Y to fit SVG (max height 350, max SV ~200)
-                const svgY = 350 - (y * 1.5);
-                d += `L ${x*20} ${svgY} `;
-            }
-            document.getElementById('starling-curve').setAttribute('d', d);
-            
-            // Move Point
-            const px = preload * 20;
-            const py = 350 - (currentSV * 1.5);
-            const pt = document.getElementById('starling-point');
-            pt.setAttribute('cx', px); 
-            pt.setAttribute('cy', py);
+<!-- ============================ CALCULATOR ============================ -->
+<section class="block" id="calculator">
+  <div class="kicker">Interactive</div>
+  <h2>Acid–base calculator</h2>
+  <div class="callout danger small"><strong>Educational aid only — not for clinical decision-making.</strong> Outputs depend on simplified formulas and assumed reference values, and cannot replace clinical judgement, local reference ranges or senior/specialist advice.</div>
+  <div class="card">
+    <div class="btn-row">
+      <label class="field" style="flex:1;min-width:200px">Load a worked case
+        <select id="calc-example"><option value="">— choose —</option></select>
+      </label>
+    </div>
+    <h4>Blood gas</h4>
+    <div class="form-grid">
+      <label class="field">pH <span class="u">&nbsp;</span><input type="number" step="0.01" id="c-ph" inputmode="decimal"></label>
+      <label class="field">PaCO₂ <span class="u">unit:</span>
+        <span style="display:flex;gap:4px"><input type="number" step="0.1" id="c-pco2" inputmode="decimal"><select id="c-pco2-unit" style="width:auto"><option value="kPa">kPa</option><option value="mmHg">mmHg</option></select></span></label>
+      <label class="field">HCO₃⁻ <span class="u">mmol/L</span><input type="number" step="0.1" id="c-hco3" inputmode="decimal"></label>
+      <label class="field">Lactate <span class="u">mmol/L</span><input type="number" step="0.1" id="c-lac" inputmode="decimal"></label>
+    </div>
+    <h4>Chemistry</h4>
+    <div class="form-grid">
+      <label class="field">Na⁺ <span class="u">mmol/L</span><input type="number" step="1" id="c-na" inputmode="decimal"></label>
+      <label class="field">K⁺ <span class="u">mmol/L</span><input type="number" step="0.1" id="c-k" inputmode="decimal"></label>
+      <label class="field">Cl⁻ <span class="u">mmol/L</span><input type="number" step="1" id="c-cl" inputmode="decimal"></label>
+      <label class="field">Albumin <span class="u">g/L</span><input type="number" step="1" id="c-alb" inputmode="decimal"></label>
+      <label class="field">Glucose <span class="u">mmol/L</span><input type="number" step="0.1" id="c-glu" inputmode="decimal"></label>
+      <label class="field">Urea <span class="u">mmol/L</span><input type="number" step="0.1" id="c-urea" inputmode="decimal"></label>
+      <label class="field">Measured osmolality <span class="u">mOsm/kg</span><input type="number" step="1" id="c-osm" inputmode="decimal"></label>
+    </div>
+    <details style="margin-top:10px"><summary class="small"><strong>Optional inputs</strong> (defaults used if blank)</summary>
+      <div class="form-grid" style="margin-top:8px">
+        <label class="field">Phosphate <span class="u">mmol/L (default 1.0)</span><input type="number" step="0.1" id="c-phos" inputmode="decimal"></label>
+        <label class="field">Ionised Ca²⁺ <span class="u">mmol/L (default 1.2)</span><input type="number" step="0.01" id="c-ica" inputmode="decimal"></label>
+        <label class="field">Magnesium <span class="u">mmol/L (default 0.9)</span><input type="number" step="0.1" id="c-mg" inputmode="decimal"></label>
+        <label class="field">Ethanol <span class="u">mmol/L (default 0)</span><input type="number" step="1" id="c-etoh" inputmode="decimal"></label>
+        <label class="field">Reference AG <span class="u">your lab (default 12)</span><input type="number" step="1" id="c-refag" inputmode="decimal"></label>
+      </div>
+    </details>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn primary" type="button" id="calc-btn">Analyse</button>
+      <button class="btn" type="button" id="calc-clear">Clear</button>
+    </div>
+    <div id="calc-errors" class="errors small" role="alert"></div>
+  </div>
+  <div id="calc-out" class="card" aria-live="polite"><p class="muted small">Enter at least pH, PaCO₂ and HCO₃⁻ (and Na⁺, Cl⁻ for the anion gap), then press Analyse.</p></div>
+</section>
 
-            // Guides
-            document.getElementById('guide-x').setAttribute('x1', px);
-            document.getElementById('guide-x').setAttribute('x2', px);
-            document.getElementById('guide-y').setAttribute('y1', py);
-            document.getElementById('guide-y').setAttribute('y2', py);
-        }
+<!-- ============================ CASES ============================ -->
+<section class="block" id="cases">
+  <div class="kicker">Practice</div>
+  <h2>Worked cases</h2>
+  <p>Work through each case step-wise before revealing the answer. All numbers are internally consistent with the formulas on this site (pH from Henderson–Hasselbalch; ionised Ca 1.2, Mg 0.9 and phosphate 1.0 mmol/L assumed for Stewart variables). Cases are fictional.</p>
+  <div id="case-list"></div>
+</section>
 
-        document.getElementById('starling-preload').oninput = updateStarlingUI;
-        document.getElementById('starling-inotropy').oninput = updateStarlingUI;
+<!-- ============================ QUIZ ============================ -->
+<section class="block" id="quiz">
+  <div class="kicker">Practice</div>
+  <h2>Quick quiz</h2>
+  <div class="card" id="quiz-box"></div>
+  <div class="btn-row"><button class="btn" type="button" id="quiz-reset">Reset quiz</button><span id="quiz-score" class="small" style="align-self:center"></span></div>
+</section>
 
-        // --- MICRO ---
+<!-- ============================ REFERENCES ============================ -->
+<section class="block" id="references">
+  <div class="kicker">Sources</div>
+  <h2>References and further reading</h2>
+  <div class="card">
+    <h4>Books</h4>
+    <ol class="refs">
+      <li>Kellum JA, Elbers PWG, eds. <em>Stewart's Textbook of Acid–Base</em>. 2nd ed. AcidBase.org; 2009.</li>
+      <li>Stewart PA. <em>How to Understand Acid–Base: A Quantitative Acid–Base Primer for Biology and Medicine</em>. New York: Elsevier; 1981.</li>
+    </ol>
+    <h4>Acid–base</h4>
+    <ol class="refs" start="3">
+      <li>Stewart PA. Modern quantitative acid–base chemistry. <em>Can J Physiol Pharmacol</em>. 1983;61(12):1444–61. <a href="https://doi.org/10.1139/y83-207">doi:10.1139/y83-207</a></li>
+      <li>Figge J, Mydosh T, Fencl V. Serum proteins and acid–base equilibria: a follow-up. <em>J Lab Clin Med</em>. 1992;120(5):713–9.</li>
+      <li>Figge J, Jabor A, Kazda A, Fencl V. Anion gap and hypoalbuminemia. <em>Crit Care Med</em>. 1998;26(11):1807–10. <a href="https://doi.org/10.1097/00003246-199811000-00019">doi:10.1097/00003246-199811000-00019</a></li>
+      <li>Fencl V, Jabor A, Kazda A, Figge J. Diagnosis of metabolic acid–base disturbances in critically ill patients. <em>Am J Respir Crit Care Med</em>. 2000;162(6):2246–51. <a href="https://doi.org/10.1164/ajrccm.162.6.9904099">doi:10.1164/ajrccm.162.6.9904099</a></li>
+      <li>Kellum JA, Kramer DJ, Pinsky MR. Strong ion gap: a methodology for exploring unexplained anions. <em>J Crit Care</em>. 1995;10(2):51–5. <a href="https://doi.org/10.1016/0883-9441(95)90016-0">doi:10.1016/0883-9441(95)90016-0</a></li>
+      <li>Kellum JA. Determinants of blood pH in health and disease. <em>Crit Care</em>. 2000;4(1):6–14. <a href="https://doi.org/10.1186/cc644">doi:10.1186/cc644</a></li>
+      <li>Story DA, Morimatsu H, Bellomo R. Strong ions, weak acids and base excess: a simplified Fencl–Stewart approach to clinical acid–base disorders. <em>Br J Anaesth</em>. 2004;92(1):54–60. <a href="https://doi.org/10.1093/bja/aeh018">doi:10.1093/bja/aeh018</a></li>
+      <li>Gilfix BM, Bique M, Magder S. A physical chemical approach to the analysis of acid–base balance in the clinical setting. <em>J Crit Care</em>. 1993;8(4):187–97. <a href="https://doi.org/10.1016/0883-9441(93)90001-2">doi:10.1016/0883-9441(93)90001-2</a></li>
+      <li>Siggaard-Andersen O. The Van Slyke equation. <em>Scand J Clin Lab Invest Suppl</em>. 1977;146:15–20. <a href="https://doi.org/10.3109/00365517709098927">doi:10.3109/00365517709098927</a></li>
+      <li>Albert MS, Dell RB, Winters RW. Quantitative displacement of acid–base equilibrium in metabolic acidosis. <em>Ann Intern Med</em>. 1967;66(2):312–22. <a href="https://doi.org/10.7326/0003-4819-66-2-312">doi:10.7326/0003-4819-66-2-312</a></li>
+      <li>Narins RG, Emmett M. Simple and mixed acid–base disorders: a practical approach. <em>Medicine (Baltimore)</em>. 1980;59(3):161–87. <a href="https://doi.org/10.1097/00005792-198005000-00001">doi:10.1097/00005792-198005000-00001</a></li>
+      <li>Berend K, de Vries AP, Gans RO. Physiological approach to assessment of acid–base disturbances. <em>N Engl J Med</em>. 2014;371(15):1434–45. <a href="https://doi.org/10.1056/NEJMra1003327">doi:10.1056/NEJMra1003327</a></li>
+      <li>Kraut JA, Madias NE. Serum anion gap: its uses and limitations in clinical medicine. <em>Clin J Am Soc Nephrol</em>. 2007;2(1):162–74. <a href="https://doi.org/10.2215/CJN.03020906">doi:10.2215/CJN.03020906</a></li>
+      <li>Rastegar A. Use of the ΔAG/ΔHCO₃⁻ ratio in the diagnosis of mixed acid–base disorders. <em>J Am Soc Nephrol</em>. 2007;18(9):2429–31. <a href="https://doi.org/10.1681/ASN.2006121408">doi:10.1681/ASN.2006121408</a></li>
+      <li>Adrogué HJ, Madias NE. Changes in plasma potassium concentration during acute acid–base disturbances. <em>Am J Med</em>. 1981;71(3):456–67. <a href="https://doi.org/10.1016/0002-9343(81)90182-0">doi:10.1016/0002-9343(81)90182-0</a></li>
+      <li>Katz MA. Hyperglycemia-induced hyponatremia — calculation of expected serum sodium depression. <em>N Engl J Med</em>. 1973;289(16):843–4. <a href="https://doi.org/10.1056/NEJM197310182891607">doi:10.1056/NEJM197310182891607</a></li>
+      <li>Hillier TA, Abbott RD, Barrett EJ. Hyponatremia: evaluating the correction factor for hyperglycemia. <em>Am J Med</em>. 1999;106(4):399–403. <a href="https://doi.org/10.1016/s0002-9343(99)00055-8">doi:10.1016/s0002-9343(99)00055-8</a></li>
+    </ol>
+    <h4>Toxic alcohols and the osmolar gap</h4>
+    <ol class="refs" start="20">
+      <li>Kraut JA, Kurtz I. Toxic alcohol ingestions: clinical features, diagnosis, and management. <em>Clin J Am Soc Nephrol</em>. 2008;3(1):208–25. <a href="https://doi.org/10.2215/CJN.03220807">doi:10.2215/CJN.03220807</a></li>
+      <li>Lynd LD, Richardson KJ, Purssell RA, et al. An evaluation of the osmole gap as a screening test for toxic alcohol poisoning. <em>BMC Emerg Med</em>. 2008;8:5. <a href="https://doi.org/10.1186/1471-227X-8-5">doi:10.1186/1471-227X-8-5</a></li>
+      <li>Hoffman RS, Smilkstein MJ, Howland MA, Goldfrank LR. Osmol gaps revisited: normal values and limitations. <em>J Toxicol Clin Toxicol</em>. 1993;31(1):81–93. <a href="https://doi.org/10.3109/15563659309000375">doi:10.3109/15563659309000375</a></li>
+    </ol>
+    <h4>Fluids</h4>
+    <ol class="refs" start="23">
+      <li>Morgan TJ, Venkatesh B, Hall J. Crystalloid strong ion difference determines metabolic acid–base change during in vitro hemodilution. <em>Crit Care Med</em>. 2002;30(1):157–60. <a href="https://doi.org/10.1097/00003246-200201000-00022">doi:10.1097/00003246-200201000-00022</a></li>
+      <li>Morgan TJ, Venkatesh B. Designing 'balanced' crystalloids. <em>Crit Care Resusc</em>. 2003;5(4):284–91.</li>
+      <li>Scheingraber S, Rehm M, Sehmisch C, Finsterer U. Rapid saline infusion produces hyperchloremic acidosis in patients undergoing gynecologic surgery. <em>Anesthesiology</em>. 1999;90(5):1265–70. <a href="https://doi.org/10.1097/00000542-199905000-00007">doi:10.1097/00000542-199905000-00007</a></li>
+      <li>Woodcock TE, Woodcock TM. Revised Starling equation and the glycocalyx model of transvascular fluid exchange: an improved paradigm for prescribing intravenous fluid therapy. <em>Br J Anaesth</em>. 2012;108(3):384–94. <a href="https://doi.org/10.1093/bja/aer515">doi:10.1093/bja/aer515</a></li>
+      <li>Levick JR, Michel CC. Microvascular fluid exchange and the revised Starling principle. <em>Cardiovasc Res</em>. 2010;87(2):198–210. <a href="https://doi.org/10.1093/cvr/cvq062">doi:10.1093/cvr/cvq062</a></li>
+      <li>Chappell D, Jacob M, Hofmann-Kiefer K, Conzen P, Rehm M. A rational approach to perioperative fluid management. <em>Anesthesiology</em>. 2008;109(4):723–40. <a href="https://doi.org/10.1097/ALN.0b013e3181863117">doi:10.1097/ALN.0b013e3181863117</a></li>
+      <li>Hahn RG. Volume kinetics for infusion fluids. <em>Anesthesiology</em>. 2010;113(2):470–81. <a href="https://doi.org/10.1097/ALN.0b013e3181dcd88f">doi:10.1097/ALN.0b013e3181dcd88f</a></li>
+      <li>Finfer S, Bellomo R, Boyce N, et al. A comparison of albumin and saline for fluid resuscitation in the intensive care unit (SAFE). <em>N Engl J Med</em>. 2004;350(22):2247–56. <a href="https://doi.org/10.1056/NEJMoa040232">doi:10.1056/NEJMoa040232</a></li>
+      <li>Semler MW, Self WH, Wanderer JP, et al. Balanced crystalloids versus saline in critically ill adults (SMART). <em>N Engl J Med</em>. 2018;378(9):829–39. <a href="https://doi.org/10.1056/NEJMoa1711584">doi:10.1056/NEJMoa1711584</a></li>
+      <li>Finfer S, Micallef S, Hammond N, et al. Balanced multielectrolyte solution versus saline in critically ill adults (PLUS). <em>N Engl J Med</em>. 2022;386(9):815–26. <a href="https://doi.org/10.1056/NEJMoa2114464">doi:10.1056/NEJMoa2114464</a></li>
+      <li>National Institute for Health and Care Excellence. <em>Intravenous fluid therapy in adults in hospital</em> (Clinical guideline CG174). London: NICE; 2013, updated 2017.</li>
+    </ol>
+  </div>
+</section>
+</main>
 
-        function updateMicroUI() {
-            const ph = parseFloat(document.getElementById('micro-ph-slider').value);
-            document.getElementById('micro-ph-val').innerText = ph.toFixed(2);
-            
-            // K shift approx: 0.6 mmol/L rise per 0.1 pH drop
-            // Base K 4.0 at pH 7.4
-            const deltaPH = 7.4 - ph;
-            const k_ecf = 4.0 + (deltaPH * 5); // 5 factor for visual effect
-            
-            const displayK = Math.max(2.0, Math.min(8.0, k_ecf));
-            
-            const k_text = document.getElementById('micro-k-val-text');
-            k_text.innerText = displayK.toFixed(1);
-            
-            // Show H+ Alert if acidotic
-            const h_label = document.getElementById('micro-h-ecf');
-            if (ph < 7.35) { 
-                h_label.style.opacity = Math.min(1, (7.35 - ph) * 4); 
-            } else { 
-                h_label.style.opacity = 0; 
-            }
-        }
+<footer>
+  <div class="wrap">
+    <p><a href="https://emevidence.org"><strong>EMEvidence</strong></a> · Acid–Base &amp; Fluids Sandbox</p>
+    <p><strong>Disclaimer:</strong> This website is for education only. It is not a medical device and has not been validated for clinical use. Do not use it to diagnose, treat or make decisions about individual patients. Formulas are simplified, reference ranges vary between laboratories, and the simulators are teaching models rather than predictions. Always follow local guidelines and seek senior or specialist advice (in poisoning, the UK National Poisons Information Service / TOXBASE). While every effort has been made to ensure accuracy, no responsibility is accepted for errors or for actions taken on the basis of this content.</p>
+  </div>
+</footer>
 
-        document.getElementById('micro-ph-slider').oninput = updateMicroUI;
+<script>
+"use strict";
+/* =====================================================================
+   CORE ACID–BASE MATHS
+   ===================================================================== */
+const KPA_TO_MMHG = 7.50062;
+const S_CO2 = 0.0307;            // CO2 solubility, mmol/L per mmHg
+const PK = 6.1;
+const hco3FromPh = (ph, pco2mm) => S_CO2 * pco2mm * Math.pow(10, ph - PK);
+const phFromHco3 = (hco3, pco2mm) => PK + Math.log10(hco3 / (S_CO2 * pco2mm));
+const albMinus = (albGL, ph) => albGL * (0.123 * ph - 0.631);      // Figge–Fencl, mEq/L
+const phosMinus = (phosMM, ph) => phosMM * (0.309 * ph - 0.469);  // mEq/L
+const vanSlykeSBE = (hco3, ph) => 0.93 * (hco3 - 24.4 + 14.83 * (ph - 7.4));
 
-        // --- COMPARATOR ---
+/* Solve Stewart electroneutrality: SID = HCO3(pH) + Alb-(pH) + Pi-(pH) */
+function solvePh(sid, pco2mm, alb, phos) {
+  let lo = 6.3, hi = 8.2;
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    const f = hco3FromPh(mid, pco2mm) + albMinus(alb, mid) + phosMinus(phos, mid) - sid;
+    if (f > 0) hi = mid; else lo = mid;
+  }
+  return (lo + hi) / 2;
+}
 
-        function updateComparatorUI() {
-            const fA = FLUIDS[document.getElementById('comp-select-a').value];
-            const fB = FLUIDS[document.getElementById('comp-select-b').value];
-            
-            document.getElementById('info-a').innerHTML = `SID: <span class="font-bold">${fA.sid}</span>`;
-            document.getElementById('info-b').innerHTML = `SID: <span class="font-bold">${fB.sid}</span>`;
+/* =====================================================================
+   FLUIDS (per litre). eff = effective osmoles retained in ECF (2 x [Na+K]);
+   glucose metabolised so eff 0. Organic anions assumed metabolised.
+   ===================================================================== */
+const FLUIDS = {
+  saline:     { name: "Sodium chloride 0.9%", na: 154, k: 0, ca: 0, mg: 0, cl: 154, eff: 308, sid: 0, max: 4 },
+  hartmanns:  { name: "Hartmann's (compound sodium lactate)", na: 131, k: 5, ca: 2, mg: 0, cl: 111, eff: 272, sid: 29, max: 4 },
+  plasmalyte: { name: "Plasma-Lyte 148", na: 140, k: 5, ca: 0, mg: 1.5, cl: 98, eff: 290, sid: 50, max: 4 },
+  glucose5:   { name: "Glucose 5%", na: 0, k: 0, ca: 0, mg: 0, cl: 0, eff: 0, sid: 0, max: 4 },
+  nacl018:    { name: "Sodium chloride 0.18% / glucose 4%", na: 30, k: 0, ca: 0, mg: 0, cl: 30, eff: 60, sid: 0, max: 4 },
+  bicarb126:  { name: "Sodium bicarbonate 1.26%", na: 150, k: 0, ca: 0, mg: 0, cl: 0, eff: 300, sid: 150, max: 2 },
+  bicarb84:   { name: "Sodium bicarbonate 8.4%", na: 1000, k: 0, ca: 0, mg: 0, cl: 0, eff: 2000, sid: 1000, max: 0.3 },
+  alb45:      { name: "Human albumin 4.5%", albumin: 45, neutral: true, eff: 288, sid: null, max: 3 },
+  alb20:      { name: "Human albumin 20%", albumin: 200, neutral: true, eff: 288, sid: null, max: 0.5 },
+  sid24:      { name: "Hypothetical crystalloid, SID 24", na: 140, k: 0, ca: 0, mg: 0, cl: 116, eff: 280, sid: 24, max: 4 }
+};
 
-            drawComparatorLine('comp-line-a', fA);
-            drawComparatorLine('comp-line-b', fB);
-        }
+const BASE = { na: 140, k: 4.0, ca: 1.2, mg: 0.9, cl: 106, alb: 40, phos: 1.0, pv: 3.5, isf: 10.5, icf: 28, ecf: 14, tbw: 42, osm: 288 };
+const BASE_PCO2_KPA = 5.3;
+// Unmeasured strong anions chosen so baseline pH = 7.40 at PaCO2 5.3 kPa with lactate 1.0
+BASE.xa = (BASE.na + BASE.k + 2 * BASE.ca + 2 * BASE.mg - BASE.cl - 1.0)
+        - (hco3FromPh(7.4, BASE_PCO2_KPA * KPA_TO_MMHG) + albMinus(BASE.alb, 7.4) + phosMinus(BASE.phos, 7.4));
 
-        function drawComparatorLine(elementId, fluid) {
-            // Logic: Compare Fluid SID to Plasma SID (40).
-            // If Fluid SID < 40 -> Acidosis trend
-            // If Fluid SID > 40 -> Alkalosis trend
-            // If Fluid SID == 40 -> Neutral (Flat)
-            
-            const plasmaSID = 40;
-            const delta = fluid.sid - plasmaSID; // e.g. Saline (0 - 40 = -40), Hartmanns (29 - 40 = -11)
-            
-            let d = "M 0 200 ";
-            // Draw 800px width
-            for(let x=0; x<=800; x+=20) {
-                // Non-linear asymptotic curve
-                // The more volume infused (x), the closer pH gets to the fluid's potential
-                const progress = x / 800;
-                const y_shift = delta * progress * 2.5; // Scale factor
-                const y = 200 - y_shift; 
-                d += `L ${x} ${y} `;
-            }
-            document.getElementById(elementId).setAttribute('d', d);
-        }
+function simulate(key, V, lac, pco2kPa, leak) {
+  const f = FLUIDS[key];
+  const totalOsm = BASE.osm * BASE.tbw + f.eff * V;
+  const osmNew = totalOsm / (BASE.tbw + V);
+  const ecf = (BASE.osm * BASE.ecf + f.eff * V) / osmNew;
+  const icf = (BASE.osm * BASE.icf) / osmNew;
+  const conc = (c0, fluidC) => (c0 * BASE.ecf + (f.neutral ? c0 : (fluidC || 0)) * V) / ecf;
+  const r = {
+    na: conc(BASE.na, f.na), k: conc(BASE.k, f.k), ca: conc(BASE.ca, f.ca), mg: conc(BASE.mg, f.mg),
+    cl: conc(BASE.cl, f.cl), xa: conc(BASE.xa, 0), phos: conc(BASE.phos, 0), lac: lac
+  };
+  const dECF = ecf - BASE.ecf;
+  let dPV, alb;
+  if (f.albumin) {
+    const retain = leak ? 0.6 : 1.0;
+    const addedAlb = f.albumin * V * retain;
+    dPV = addedAlb / 45;                         // idealised: iso-oncotic with 4.5% albumin
+    alb = (BASE.alb * BASE.pv + addedAlb) / (BASE.pv + dPV);
+  } else {
+    const share = leak ? 0.15 : BASE.pv / BASE.ecf;
+    dPV = share * dECF;
+    alb = BASE.alb * BASE.pv / (BASE.pv + dPV);
+  }
+  r.alb = alb;
+  r.dPV = dPV; r.dISF = dECF - dPV; r.dICF = icf - BASE.icf;
+  r.pco2mm = pco2kPa * KPA_TO_MMHG;
+  r.sida = r.na + r.k + 2 * r.ca + 2 * r.mg - r.cl - r.lac;
+  const sidEff = r.sida - r.xa;
+  r.ph = solvePh(sidEff, r.pco2mm, r.alb, r.phos);
+  r.hco3 = hco3FromPh(r.ph, r.pco2mm);
+  r.aAlb = albMinus(r.alb, r.ph); r.aPi = phosMinus(r.phos, r.ph);
+  r.side = r.hco3 + r.aAlb + r.aPi;
+  r.sbe = vanSlykeSBE(r.hco3, r.ph);
+  return r;
+}
 
-        // --- CASES ---
+/* =====================================================================
+   UI HELPERS
+   ===================================================================== */
+const $ = (id) => document.getElementById(id);
+const fmt = (x, d = 1) => (x === null || x === undefined || !isFinite(x)) ? "—" : Number(x).toFixed(d);
+const sgn = (x, d = 1) => (x > 0 ? "+" : "") + fmt(x, d);
+const SVGNS = "http://www.w3.org/2000/svg";
+function svgEl(tag, attrs, parent) {
+  const el = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) el.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(el);
+  return el;
+}
 
-        function setCase(scenario) {
-            state.case.type = scenario;
-            
-            // Reset Styles
-            const btnSepsis = document.getElementById('case-sepsis');
-            const btnDKA = document.getElementById('case-dka');
-            
-            btnSepsis.className = "flex-1 py-3 rounded-lg font-bold transition-all border shadow-sm " + (scenario === 'sepsis' ? "bg-red-100 text-red-800 border-red-300 ring-2 ring-red-200" : "bg-white text-slate-600 border-slate-200");
-            btnDKA.className = "flex-1 py-3 rounded-lg font-bold transition-all border shadow-sm " + (scenario === 'dka' ? "bg-purple-100 text-purple-800 border-purple-300 ring-2 ring-purple-200" : "bg-white text-slate-600 border-slate-200");
+/* ---------- Theme ---------- */
+(function themeInit() {
+  const modes = ["auto", "light", "dark"];
+  let mode = "auto";
+  try { mode = localStorage.getItem("ab-theme") || "auto"; } catch (e) {}
+  const apply = () => {
+    if (mode === "auto") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", mode);
+    $("theme-btn").textContent = "Theme: " + mode;
+  };
+  apply();
+  $("theme-btn").addEventListener("click", () => {
+    mode = modes[(modes.indexOf(mode) + 1) % modes.length];
+    try { localStorage.setItem("ab-theme", mode); } catch (e) {}
+    apply();
+  });
+})();
 
-            // Reset Physiology
-            state.case.hr = 120; 
-            state.case.map = 55; 
-            state.case.lungs = 'Clear'; 
-            state.case.fluidGiven = 0;
-            
-            updateCaseUI();
-            
-            document.getElementById('case-log').innerHTML = scenario === 'sepsis' 
-                ? "<span class='font-bold text-red-600'>New Patient:</span> 55M. Septic Shock. Hypotensive, Tachycardic. Extensively vasodilasated." 
-                : "<span class='font-bold text-purple-600'>New Patient:</span> 22F T1DM. DKA. Kussmaul breathing. Profoundly dehydrated.";
-        }
+/* ---------- Nav highlighting ---------- */
+(function navInit() {
+  const links = Array.from(document.querySelectorAll("#nav a"));
+  const sections = links.map(a => document.querySelector(a.getAttribute("href")));
+  const onScroll = () => {
+    let idx = 0;
+    const y = window.scrollY + 130;
+    sections.forEach((s, i) => { if (s && s.offsetTop <= y) idx = i; });
+    links.forEach((a, i) => a.classList.toggle("active", i === idx));
+    const active = links[idx];
+    if (active && active.dataset.shown !== "1") {
+      links.forEach(l => l.dataset.shown = "");
+      active.dataset.shown = "1";
+      const nav = $("nav");
+      const left = active.offsetLeft - nav.clientWidth / 2 + active.clientWidth / 2;
+      nav.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
+    }
+  };
+  window.addEventListener("scroll", onScroll, { passive: true });
+  onScroll();
+})();
 
-        function treatCase(action) {
-            let msg = "";
-            const isSepsis = state.case.type === 'sepsis';
-            
-            if (action === 'fluid') {
-                state.case.fluidGiven += 0.5;
-                if (isSepsis) {
-                    state.case.map += 8; 
-                    state.case.hr -= 6;
-                    if (state.case.fluidGiven > 2.0) { 
-                        state.case.lungs = 'Crackles'; 
-                        msg = "Warning: Pulmonary Edema developing! Leaky capillaries cannot hold this volume."; 
-                    } else { 
-                        msg = "Fluid bolus given. MAP improved slightly due to volume loading."; 
-                    }
-                } else { 
-                    // DKA
-                    state.case.hr -= 12; 
-                    state.case.map += 5; 
-                    msg = "Rehydration underway. Heart rate settling nicely. Patient looks less dry."; 
-                }
-            } else if (action === 'norad') {
-                if (state.case.fluidGiven < 1 && !isSepsis) { 
-                    state.case.map += 15; 
-                    msg = "BP up, but organs poorly perfused (vasoconstriction without volume). HR remains high."; 
-                } else if (isSepsis) {
-                    state.case.map += 12; 
-                    msg = "Vasopressor started. SVR increased. MAP target achieved."; 
-                } else {
-                    state.case.map += 5;
-                    msg = "Vasopressor added. BP stable.";
-                }
-            }
-            updateCaseUI();
-            
-            // Append log (keep last 3 messages)
-            const logEl = document.getElementById('case-log');
-            logEl.innerHTML = `<div>&bull; ${msg}</div>` + logEl.innerHTML;
-        }
+/* ---------- Simulator sub-tabs ---------- */
+function openSubtab(name) {
+  document.querySelectorAll("#subtabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.sub === name ? "true" : "false"));
+  document.querySelectorAll(".subpanel").forEach(p => p.classList.toggle("hidden", p.id !== "sub-" + name));
+  if (name === "comparator") updateComparatorUI();
+}
+document.querySelectorAll("#subtabs button").forEach(b => b.addEventListener("click", () => openSubtab(b.dataset.sub)));
 
-        function updateCaseUI() {
-            document.getElementById('case-hr').innerText = state.case.hr;
-            document.getElementById('case-map').innerText = state.case.map;
-            
-            const lungEl = document.getElementById('case-lungs');
-            lungEl.innerText = state.case.lungs;
-            if(state.case.lungs === 'Crackles') {
-                lungEl.className = "text-lg font-bold text-red-400 animate-pulse";
-            } else {
-                lungEl.className = "text-lg font-bold text-white";
-            }
-        }
+/* =====================================================================
+   STEWART SIMULATOR
+   ===================================================================== */
+const sim = { fluid: "saline", V: 0, playing: false, timer: null, lac: 1.0, pco2: BASE_PCO2_KPA, leak: false };
 
-    </script>
+function populateFluidSelects() {
+  const opts = Object.entries(FLUIDS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join("");
+  ["fluid-select", "comp-select-a", "comp-select-b"].forEach(id => { $(id).innerHTML = opts; });
+  $("fluid-select").value = "saline";
+  $("comp-select-a").value = "saline";
+  $("comp-select-b").value = "hartmanns";
+}
+
+function setPlaying(on) {
+  sim.playing = on;
+  clearInterval(sim.timer);
+  $("play-btn").textContent = on ? "❚❚ Pause" : "▶ Infuse";
+  if (on) sim.timer = setInterval(simTick, 80);
+}
+function simTick() {
+  const max = FLUIDS[sim.fluid].max;
+  sim.V = Math.min(max, sim.V + max / 160);
+  if (sim.V >= max) setPlaying(false);
+  renderSim();
+}
+function resetSim() { setPlaying(false); sim.V = 0; renderSim(); }
+
+function setBar(id, valId, dL) {
+  const bar = $(id), pct = Math.max(-50, Math.min(50, (dL / 1.5) * 50));
+  if (pct >= 0) { bar.style.left = "50%"; bar.style.width = pct + "%"; }
+  else { bar.style.left = (50 + pct) + "%"; bar.style.width = (-pct) + "%"; }
+  $(valId).textContent = (dL >= 0 ? "+" : "−") + Math.abs(dL * 1000).toFixed(0) + " mL";
+}
+function classPh(el, ph) { el.className = "v " + (ph < 7.35 ? "low" : ph > 7.45 ? "high" : "normal"); }
+
+function renderSim() {
+  const r = simulate(sim.fluid, sim.V, sim.lac, sim.pco2, sim.leak);
+  $("vol-infused").textContent = sim.V.toFixed(2);
+  $("vol-max").textContent = FLUIDS[sim.fluid].max;
+  $("stat-ph").textContent = fmt(r.ph, 2); classPh($("stat-ph"), r.ph);
+  $("stat-hco3").textContent = fmt(r.hco3, 1);
+  $("stat-be").textContent = sgn(r.sbe, 1);
+  $("stat-be").className = "v " + (r.sbe < -2 ? "low" : r.sbe > 2 ? "high" : "normal");
+  $("stat-sid").textContent = fmt(r.sida, 1);
+  $("stat-side").textContent = fmt(r.side, 1);
+  $("stat-alb").textContent = fmt(r.alb, 1);
+  $("stat-na").textContent = fmt(r.na, 1);
+  $("stat-cl").textContent = fmt(r.cl, 1);
+  setBar("bar-plasma", "val-plasma", r.dPV);
+  setBar("bar-isf", "val-isf", r.dISF);
+  setBar("bar-icf", "val-icf", r.dICF);
+  drawGamble(r);
+}
+
+function drawGamble(r) {
+  const svg = $("gamble");
+  svg.innerHTML = "";
+  const scale = 2.5, bottom = 430, w = 95, xC = 30, xA = 150;
+  const other = r.k + 2 * r.ca + 2 * r.mg;
+  const segs = (x, list) => {
+    let y = bottom;
+    list.forEach(([val, color, label]) => {
+      const h = Math.max(0, val) * scale;
+      y -= h;
+      svgEl("rect", { x, y, width: w, height: Math.max(0, h), fill: color, stroke: "var(--surface)", "stroke-width": 1 }, svg);
+      if (h >= 13) {
+        const t = svgEl("text", { x: x + w / 2, y: y + h / 2 + 4, "text-anchor": "middle", "font-size": h > 40 ? 14 : 10, "font-weight": 700, fill: "#fff" }, svg);
+        t.textContent = h > 40 ? `${label} ${val.toFixed(0)}` : label;
+      }
+    });
+    return y;
+  };
+  const topC = segs(xC, [[r.na, "var(--na)", "Na⁺"], [other, "var(--oth)", "K/Ca/Mg"]]);
+  segs(xA, [[r.cl, "var(--cl)", "Cl⁻"], [r.lac, "var(--lac)", "Lac⁻"], [r.xa, "var(--xa)", "XA⁻"], [r.aAlb + r.aPi, "var(--alb)", "A⁻"], [r.hco3, "var(--hco3)", "HCO₃⁻"]]);
+  const t1 = svgEl("text", { x: xC + w / 2, y: Math.max(14, topC - 8), "text-anchor": "middle", "font-size": 12, "font-weight": 700, class: "muted-text" }, svg); t1.textContent = "Cations";
+  const t2 = svgEl("text", { x: xA + w / 2, y: Math.max(14, topC - 8), "text-anchor": "middle", "font-size": 12, "font-weight": 700, class: "muted-text" }, svg); t2.textContent = "Anions";
+  // SIDa bracket: from top of Cl+lactate to top of column
+  const yTop = topC, yBot = bottom - (r.cl + r.lac) * scale, bx = xA + w + 8;
+  svgEl("path", { d: `M ${bx} ${yTop} h 8 V ${yBot} h -8`, fill: "none", stroke: "var(--faint)", "stroke-width": 2 }, svg);
+  const lt = svgEl("text", { x: bx + 12, y: (yTop + yBot) / 2 - 4, "font-size": 12, "font-weight": 700 }, svg); lt.textContent = "SIDa";
+  const lv = svgEl("text", { x: bx + 12, y: (yTop + yBot) / 2 + 12, "font-size": 12 }, svg); lv.textContent = r.sida.toFixed(1);
+}
+
+/* =====================================================================
+   COMPARATOR
+   ===================================================================== */
+function updateComparatorUI() {
+  const ka = $("comp-select-a").value, kb = $("comp-select-b").value;
+  const sidTxt = (k) => FLUIDS[k].sid === null ? "SID: product-specific (modelled as neutral; albumin effect only)" : `Effective SID: ${FLUIDS[k].sid} mEq/L`;
+  $("info-a").textContent = sidTxt(ka);
+  $("info-b").textContent = sidTxt(kb);
+  const svg = $("comp-chart");
+  svg.innerHTML = "";
+  const X0 = 60, X1 = 620, Y0 = 20, Y1 = 320, vMax = 5, phMin = 7.1, phMax = 7.7;
+  const xs = v => X0 + (v / vMax) * (X1 - X0);
+  const ys = ph => Y1 - ((Math.max(phMin, Math.min(phMax, ph)) - phMin) / (phMax - phMin)) * (Y1 - Y0);
+  for (let p = 7.1; p <= 7.701; p += 0.1) {
+    svgEl("line", { x1: X0, x2: X1, y1: ys(p), y2: ys(p), class: "grid-line" }, svg);
+    const t = svgEl("text", { x: X0 - 8, y: ys(p) + 6, "text-anchor": "end", "font-size": 18, class: "muted-text" }, svg); t.textContent = p.toFixed(1);
+  }
+  for (let v = 0; v <= vMax; v++) {
+    const t = svgEl("text", { x: xs(v), y: Y1 + 22, "text-anchor": "middle", "font-size": 18, class: "muted-text" }, svg); t.textContent = v;
+  }
+  svgEl("rect", { x: X0, y: ys(7.45), width: X1 - X0, height: ys(7.35) - ys(7.45), fill: "var(--ok)", opacity: 0.08 }, svg);
+  svgEl("line", { x1: X0, x2: X0, y1: Y0, y2: Y1, class: "axis" }, svg);
+  svgEl("line", { x1: X0, x2: X1, y1: Y1, y2: Y1, class: "axis" }, svg);
+  const xl = svgEl("text", { x: (X0 + X1) / 2, y: Y1 + 34, "text-anchor": "middle", "font-size": 18, class: "muted-text" }, svg); xl.textContent = "Volume infused (L)";
+  const yl = svgEl("text", { x: -(Y0 + Y1) / 2, y: 16, transform: "rotate(-90)", "text-anchor": "middle", "font-size": 18, class: "muted-text" }, svg); yl.textContent = "pH";
+  const rows = [];
+  [[ka, "var(--accent)", ""], [kb, "var(--hco3)", "8 6"]].forEach(([k, col, dash]) => {
+    const vEnd = Math.min(vMax, FLUIDS[k].max);
+    let d = "";
+    for (let i = 0; i <= 100; i++) {
+      const v = vEnd * i / 100;
+      const r = simulate(k, v, 1.0, BASE_PCO2_KPA, false);
+      d += (i ? " L " : "M ") + xs(v).toFixed(1) + " " + ys(r.ph).toFixed(1);
+    }
+    svgEl("path", { d, fill: "none", stroke: col, "stroke-width": 4, "stroke-dasharray": dash, "stroke-linecap": "round" }, svg);
+    const at = (v) => v <= FLUIDS[k].max ? simulate(k, v, 1.0, BASE_PCO2_KPA, false) : null;
+    const r1 = at(1), r3 = at(3), rEnd = at(vEnd);
+    rows.push(`<tr><td>${FLUIDS[k].name}</td><td class="num">${r1 ? fmt(r1.ph, 2) : "—"}</td><td class="num">${r1 ? sgn(r1.sbe, 1) : "—"}</td><td class="num">${r3 ? fmt(r3.ph, 2) : "—"}</td><td class="num">${r3 ? fmt(r3.cl, 0) : "—"}</td><td class="num">${vEnd} L → pH ${fmt(rEnd.ph, 2)}</td></tr>`);
+  });
+  $("comp-table").innerHTML = `<tr><th>Fluid</th><th class="num">pH after 1 L</th><th class="num">SBE after 1 L</th><th class="num">pH after 3 L</th><th class="num">Cl⁻ after 3 L</th><th class="num">End of curve</th></tr>` + rows.join("");
+}
+
+/* =====================================================================
+   POTASSIUM SHIFT
+   ===================================================================== */
+function updateMicroUI() {
+  const ph = parseFloat($("micro-ph-slider").value);
+  const type = $("k-type").value;
+  $("micro-ph-val").textContent = ph.toFixed(2);
+  const d = (7.4 - ph) * 10; // number of 0.1 pH units of fall
+  let k = 4.0, range = "—", note = "";
+  if (ph < 7.4 && type === "mineral") {
+    k = 4.0 + 0.6 * d;
+    range = (4.0 + 0.2 * d).toFixed(1) + "–" + (4.0 + 1.7 * d).toFixed(1);
+    note = "Average rise ≈ 0.6 mmol/L per 0.1 fall in pH (range ≈ 0.2–1.7; Adrogué & Madias 1981). Individual responses vary widely.";
+  } else if (ph < 7.4) {
+    note = "In organic and respiratory acidoses the shift is small and inconsistent, so no meaningful average can be shown. Look for other causes of hyperkalaemia (renal failure, insulin deficiency, drugs, tissue breakdown).";
+  } else if (ph > 7.4) {
+    note = "Alkalaemia tends to lower plasma K⁺, but the effect is smaller and variable; no single figure is shown.";
+  } else {
+    note = "Baseline.";
+  }
+  $("micro-k-val-text").textContent = (ph > 7.4 ? "↓ " : "") + k.toFixed(1);
+  $("micro-k-val-text").className = "v " + (k > 5.5 ? "low" : "normal");
+  $("micro-k-range").textContent = range;
+  $("k-note").textContent = note;
+}
+
+/* =====================================================================
+   FRANK–STARLING (illustrative)
+   ===================================================================== */
+function updateStarlingUI() {
+  const preload = parseFloat($("starling-preload").value);
+  const inotropy = parseFloat($("starling-inotropy").value);
+  $("preload-val").textContent = preload;
+  $("inotropy-val").textContent = inotropy.toFixed(1);
+  const maxSV = 110 * inotropy;
+  const sv = maxSV * (1 - Math.exp(-0.12 * preload));
+  $("starling-sv-display").textContent = sv.toFixed(0) + " mL";
+  $("starling-co-display").textContent = (sv * 72 / 1000).toFixed(1) + " L/min";
+  const yScale = 350 / 230;
+  let d = "M 0 350 ";
+  for (let x = 0; x <= 32; x += 0.5) {
+    const y = maxSV * (1 - Math.exp(-0.12 * x));
+    d += `L ${x * 20} ${350 - y * yScale} `;
+  }
+  $("starling-curve").setAttribute("d", d);
+  const px = preload * 20, py = 350 - sv * yScale;
+  const pt = $("starling-point"); pt.setAttribute("cx", px); pt.setAttribute("cy", py);
+  const gx = $("guide-x"); gx.setAttribute("x1", px); gx.setAttribute("x2", px); gx.setAttribute("y1", py); gx.setAttribute("y2", 350);
+  const gy = $("guide-y"); gy.setAttribute("x1", 0); gy.setAttribute("x2", px); gy.setAttribute("y1", py); gy.setAttribute("y2", py);
+}
+
+/* =====================================================================
+   BEDSIDE SCENARIOS (scripted toy)
+   ===================================================================== */
+const bedside = { type: null, hr: 120, map: 55, lungs: "Clear", fluidGiven: 0 };
+function setCase(scenario) {
+  Object.assign(bedside, { type: scenario, hr: 120, map: 55, lungs: "Clear", fluidGiven: 0 });
+  $("case-sepsis").classList.toggle("primary", scenario === "sepsis");
+  $("case-dka").classList.toggle("primary", scenario === "dka");
+  $("case-log").innerHTML = scenario === "sepsis"
+    ? "<p><strong>New patient:</strong> 55-year-old man in septic shock. Hypotensive, tachycardic, peripherally vasodilated.</p>"
+    : "<p><strong>New patient:</strong> 22-year-old woman with type 1 diabetes in DKA. Kussmaul breathing, clinically very dehydrated.</p>";
+  updateCaseUI();
+}
+function treatCase(action) {
+  if (!bedside.type) { $("case-log").innerHTML = "<p>Choose a scenario first.</p>"; return; }
+  let msg = "";
+  const isSepsis = bedside.type === "sepsis";
+  if (action === "fluid") {
+    bedside.fluidGiven += 0.5;
+    if (isSepsis) {
+      bedside.map += 8; bedside.hr -= 6;
+      if (bedside.fluidGiven > 2.0) { bedside.lungs = "Crackles"; msg = "Warning: pulmonary oedema developing. With leaky capillaries and a heart on the flat part of its Starling curve, further fluid mainly raises filling pressures."; }
+      else msg = "Fluid bolus given: MAP improved slightly (fluid responsive).";
+    } else {
+      bedside.hr -= 12; bedside.map += 5;
+      msg = "Rehydration under way: heart rate settling, perfusion improving.";
+    }
+  } else if (action === "norad") {
+    if (!isSepsis && bedside.fluidGiven < 1) { bedside.map += 15; msg = "Blood pressure rises, but vasoconstriction without restoring volume leaves tissues poorly perfused; heart rate stays high."; }
+    else if (isSepsis) { bedside.map += 12; msg = "Vasopressor started: systemic vascular resistance increased and MAP improved."; }
+    else { bedside.map += 5; msg = "Vasopressor added: blood pressure stable."; }
+  }
+  bedside.hr = Math.max(60, bedside.hr); bedside.map = Math.min(110, bedside.map);
+  updateCaseUI();
+  $("case-log").insertAdjacentHTML("afterbegin", `<p>• ${msg}</p>`);
+}
+function updateCaseUI() {
+  $("case-hr").textContent = bedside.hr;
+  $("case-map").textContent = bedside.map;
+  $("case-lungs").textContent = bedside.lungs;
+  $("case-lungs").className = "v " + (bedside.lungs === "Crackles" ? "low" : "");
+}
+
+/* =====================================================================
+   CALCULATOR
+   ===================================================================== */
+const CALC_FIELDS = {
+  ph:   { id: "c-ph",   min: 6.5, max: 8.0,  label: "pH" },
+  pco2: { id: "c-pco2", min: 1,   max: 20,   label: "PaCO₂" },
+  hco3: { id: "c-hco3", min: 1,   max: 60,   label: "HCO₃⁻" },
+  lac:  { id: "c-lac",  min: 0,   max: 30,   label: "Lactate" },
+  na:   { id: "c-na",   min: 100, max: 190,  label: "Na⁺" },
+  k:    { id: "c-k",    min: 1,   max: 10,   label: "K⁺" },
+  cl:   { id: "c-cl",   min: 60,  max: 150,  label: "Cl⁻" },
+  alb:  { id: "c-alb",  min: 5,   max: 60,   label: "Albumin" },
+  glu:  { id: "c-glu",  min: 0.5, max: 120,  label: "Glucose" },
+  urea: { id: "c-urea", min: 0.3, max: 100,  label: "Urea" },
+  osm:  { id: "c-osm",  min: 200, max: 500,  label: "Measured osmolality" },
+  phos: { id: "c-phos", min: 0.1, max: 6,    label: "Phosphate" },
+  ica:  { id: "c-ica",  min: 0.4, max: 2.5,  label: "Ionised Ca²⁺" },
+  mg:   { id: "c-mg",   min: 0.1, max: 4,    label: "Magnesium" },
+  etoh: { id: "c-etoh", min: 0,   max: 200,  label: "Ethanol" },
+  refag:{ id: "c-refag",min: 0,   max: 30,   label: "Reference AG" }
+};
+
+function readInputs() {
+  const v = {}, errors = [];
+  const unit = $("c-pco2-unit").value;
+  for (const [key, f] of Object.entries(CALC_FIELDS)) {
+    const el = $(f.id);
+    el.classList.remove("invalid");
+    const raw = el.value.trim();
+    if (raw === "") { v[key] = null; continue; }
+    const x = Number(raw);
+    let min = f.min, max = f.max;
+    if (key === "pco2" && unit === "mmHg") { min = f.min * KPA_TO_MMHG; max = f.max * KPA_TO_MMHG; }
+    if (!isFinite(x) || x < min || x > max) {
+      el.classList.add("invalid");
+      errors.push(`${f.label}: enter a value between ${+min.toFixed(1)} and ${+max.toFixed(1)}.`);
+      v[key] = null;
+    } else v[key] = x;
+  }
+  if (v.pco2 !== null) {
+    v.pco2mm = unit === "mmHg" ? v.pco2 : v.pco2 * KPA_TO_MMHG;
+    v.pco2kPa = v.pco2mm / KPA_TO_MMHG;
+  }
+  return { v, errors };
+}
+
+const both = (mm) => `${fmt(mm / KPA_TO_MMHG, 2)} kPa (${fmt(mm, 1)} mmHg)`;
+const rangeBoth = (lo, hi) => `${fmt(lo / KPA_TO_MMHG, 2)}–${fmt(hi / KPA_TO_MMHG, 2)} kPa (${fmt(lo, 1)}–${fmt(hi, 1)} mmHg)`;
+
+/* Pure analysis function (also used for testing) */
+function analyseABG(v) {
+  const out = { rows: [], notes: [] };
+  const refAG = v.refag ?? 12;
+  const has = (...ks) => ks.every(k => v[k] !== null && v[k] !== undefined);
+  // ---- Primary disorder ----
+  if (has("ph", "pco2", "hco3")) {
+    const acid = v.ph < 7.35, alk = v.ph > 7.45;
+    const metAcid = v.hco3 < 22, metAlk = v.hco3 > 26;
+    const respAcid = v.pco2mm > 45, respAlk = v.pco2mm < 35;
+    let primary = "", single = null;
+    if (acid) {
+      if (metAcid && respAcid) primary = "Acidaemia: mixed metabolic and respiratory acidosis";
+      else if (metAcid) { primary = "Acidaemia: primary metabolic acidosis"; single = "metAcid"; }
+      else if (respAcid) { primary = "Acidaemia: primary respiratory acidosis"; single = "respAcid"; }
+      else primary = "Acidaemia without a clearly abnormal PaCO₂ or HCO₃⁻ — check the values";
+    } else if (alk) {
+      if (metAlk && respAlk) primary = "Alkalaemia: mixed metabolic and respiratory alkalosis";
+      else if (metAlk) { primary = "Alkalaemia: primary metabolic alkalosis"; single = "metAlk"; }
+      else if (respAlk) { primary = "Alkalaemia: primary respiratory alkalosis"; single = "respAlk"; }
+      else primary = "Alkalaemia without a clearly abnormal PaCO₂ or HCO₃⁻ — check the values";
+    } else {
+      const lowSide = v.ph < 7.40;
+      const cand = lowSide ? [["metAcid", metAcid, "metabolic acidosis"], ["respAcid", respAcid, "respiratory acidosis"]]
+                           : [["metAlk", metAlk, "metabolic alkalosis"], ["respAlk", respAlk, "respiratory alkalosis"]];
+      const present = cand.filter(c => c[1]);
+      const anyAbn = metAcid || metAlk || respAcid || respAlk;
+      if (!anyAbn) primary = "pH, PaCO₂ and HCO₃⁻ within reference ranges — no disturbance evident (still check the anion gap)";
+      else if (present.length === 1) { primary = `pH within range: ${present[0][2]} (mild, well compensated, or part of a mixed disorder)`; single = present[0][0]; }
+      else if (present.length === 2) primary = `pH within range but ${present[0][2]} and ${present[1][2]} — mixed disorder`;
+      else primary = "pH within range with abnormal PaCO₂ and HCO₃⁻ — opposing processes (mixed disorder) or full compensation";
+      if (metAcid && respAlk && single === null) primary = "pH within range with low HCO₃⁻ and low PaCO₂ — mixed metabolic acidosis and respiratory alkalosis, or a chronic disorder with full compensation";
+      if (metAlk && respAcid && single === null) primary = "pH within range with high HCO₃⁻ and high PaCO₂ — mixed respiratory acidosis and metabolic alkalosis, or a chronic disorder with full compensation";
+    }
+    out.primary = primary;
+    out.rows.push(["Primary disorder", primary, "primary"]);
+    // ---- Compensation ----
+    let comp = "";
+    const d40 = v.pco2mm - 40;
+    if (single === "metAcid" || (metAcid && !single)) {
+      const exp = 1.5 * v.hco3 + 8;
+      out.winterMm = exp; out.winterKpa = exp / KPA_TO_MMHG;
+      let verdict = v.pco2mm > exp + 2 ? "PaCO₂ higher than expected → additional respiratory acidosis" :
+                    v.pco2mm < exp - 2 ? "PaCO₂ lower than expected → additional respiratory alkalosis" : "PaCO₂ within expected range → appropriate respiratory compensation";
+      comp = `Winter's formula: expected PaCO₂ = 1.5 × ${fmt(v.hco3, 1)} + 8 = ${both(exp)}; range ${rangeBoth(exp - 2, exp + 2)}. Measured ${both(v.pco2mm)}. ${verdict}.`;
+    } else if (single === "metAlk") {
+      const exp = 0.7 * v.hco3 + 20;
+      comp = `Expected PaCO₂ ≈ 0.7 × ${fmt(v.hco3, 1)} + 20 = ${both(exp)}; range ${rangeBoth(exp - 5, exp + 5)}. Measured ${both(v.pco2mm)}. ` +
+        (v.pco2mm > exp + 5 ? "Higher than expected → additional respiratory acidosis." : v.pco2mm < exp - 5 ? "Lower than expected → additional respiratory alkalosis." : "Within expected range → appropriate compensation.");
+    } else if (single === "respAcid") {
+      const ac = 24 + 0.1 * d40, ch = 24 + 0.4 * d40;
+      comp = `Expected HCO₃⁻: acute ≈ ${fmt(ac, 1)}, chronic ≈ ${fmt(ch, 1)} mmol/L (measured ${fmt(v.hco3, 1)}). `;
+      if (v.hco3 < ac - 2) comp += "Lower than even the acute prediction → additional metabolic acidosis.";
+      else if (v.hco3 > ch + 2) comp += "Higher than the chronic prediction → additional metabolic alkalosis.";
+      else if (Math.abs(v.hco3 - ac) <= 2) comp += "Consistent with acute respiratory acidosis.";
+      else if (Math.abs(v.hco3 - ch) <= 2) comp += "Consistent with chronic (renally compensated) respiratory acidosis.";
+      else comp += "Between acute and chronic predictions → acute-on-chronic, evolving, or a mixed disorder.";
+    } else if (single === "respAlk") {
+      const ac = 24 + 0.2 * d40, ch = 24 + 0.5 * d40; // d40 negative
+      comp = `Expected HCO₃⁻: acute ≈ ${fmt(ac, 1)}, chronic ≈ ${fmt(ch, 1)} mmol/L (measured ${fmt(v.hco3, 1)}). `;
+      if (v.hco3 > ac + 2) comp += "Higher than the acute prediction → additional metabolic alkalosis.";
+      else if (v.hco3 < ch - 2) comp += "Lower than even the chronic prediction → additional metabolic acidosis.";
+      else if (Math.abs(v.hco3 - ac) <= 2) comp += "Consistent with acute respiratory alkalosis.";
+      else if (Math.abs(v.hco3 - ch) <= 2) comp += "Consistent with chronic respiratory alkalosis — but if the onset is recent (hours), HCO₃⁻ this low implies an additional metabolic acidosis.";
+      else comp += "Between acute and chronic predictions → evolving, or a mixed disorder.";
+    } else if (metAcid && respAcid) {
+      comp = "Both components are acidifying: no compensation is occurring — a mixed disorder.";
+    } else if (metAlk && respAlk) {
+      comp = "Both components are alkalinising: no compensation is occurring — a mixed disorder.";
+    } else comp = "Not applicable.";
+    out.comp = comp;
+    out.rows.push(["Compensation", comp, "comp"]);
+    // ---- HH consistency ----
+    const calcHco3 = hco3FromPh(v.ph, v.pco2mm);
+    out.hhHco3 = calcHco3;
+    const diff = v.hco3 - calcHco3;
+    out.rows.push(["Henderson–Hasselbalch check", `HCO₃⁻ calculated from pH and PaCO₂ = ${fmt(calcHco3, 1)} mmol/L (entered ${fmt(v.hco3, 1)}).` +
+      (Math.abs(diff) > 0.1 * calcHco3 + 1 ? ` <span class="flag mid">Differs by ${fmt(Math.abs(diff), 1)} — check for a transcription error or non-simultaneous samples (laboratory total CO₂ is usually 1–2 higher).</span>` : " Consistent."), "hh"]);
+  } else {
+    out.notes.push("Enter pH, PaCO₂ and HCO₃⁻ to classify the disorder.");
+  }
+  // ---- Anion gap ----
+  if (has("na", "cl", "hco3")) {
+    const ag = v.na - v.cl - v.hco3;
+    out.ag = ag;
+    let agTxt = `${fmt(ag, 1)} mmol/L`;
+    if (v.k !== null) { out.agK = ag + v.k; agTxt += ` · with K⁺: ${fmt(out.agK, 1)} mmol/L`; }
+    out.rows.push(["Anion gap (Na − Cl − HCO₃)", agTxt, "ag"]);
+    let agUse = ag;
+    if (v.alb !== null) {
+      out.agc = ag + 0.25 * (40 - v.alb);
+      agUse = out.agc;
+      out.rows.push(["Albumin-corrected AG (Figge, ref 40 g/L)", `${fmt(out.agc, 1)} mmol/L` + (Math.abs(out.agc - ag) >= 1 ? ` <span class="small muted">(${out.agc > ag ? "+" : ""}${fmt(out.agc - ag, 1)} for albumin ${fmt(v.alb, 0)} g/L)</span>` : ""), "agc"]);
+    }
+    const raised = agUse > refAG;
+    out.rows.push(["AG interpretation", raised
+      ? `<span class="flag bad">Above the reference value (${refAG})</span>. A clearly raised AG indicates a high anion gap metabolic acidosis, even if pH and HCO₃⁻ do not suggest one (small rises can reflect haemoconcentration or analyser variation).`
+      : `<span class="flag good">Not above the reference value (${refAG}).</span>` + (v.hco3 < 22 ? " Low HCO₃⁻ with a normal AG → normal anion gap (hyperchloraemic) metabolic acidosis, if a metabolic acidosis is present." : ""), "agint"]);
+    if (raised && v.hco3 < 24) {
+      const dr = (agUse - refAG) / (24 - v.hco3);
+      out.delta = dr;
+      let interp = dr < 0.4 ? "< 0.4: suggests hyperchloraemic normal-AG acidosis" :
+        dr < 0.8 ? "0.4–0.8: combined HAGMA and normal-AG acidosis (consider renal failure)" :
+        dr < 1 ? "0.8–1: grey zone; possibly a small normal-AG component" :
+        dr <= 2 ? "1–2: uncomplicated HAGMA (lactic ~1.6; DKA often ~1)" :
+        "> 2: HAGMA plus a pre-existing high HCO₃⁻ (metabolic alkalosis or compensated chronic respiratory acidosis)";
+      out.rows.push(["Delta ratio (" + (v.alb !== null ? "corrected AG" : "AG") + ")", `(${fmt(agUse, 1)} − ${refAG}) ÷ (24 − ${fmt(v.hco3, 1)}) = <strong>${fmt(dr, 2)}</strong> → ${interp}. <span class="small muted">Rule of thumb only.</span>`, "delta"]);
+    } else {
+      out.rows.push(["Delta ratio", "Not calculated (needs a raised AG and HCO₃⁻ below 24).", "delta"]);
+    }
+  }
+  // ---- Osmolar gap ----
+  if (has("na", "glu", "urea")) {
+    const calc = 2 * v.na + v.glu + v.urea + (v.etoh || 0);
+    out.calcOsm = calc;
+    if (v.osm !== null) {
+      out.og = v.osm - calc;
+      out.rows.push(["Osmolar gap", `Calculated = 2×${fmt(v.na, 0)} + ${fmt(v.glu, 1)} + ${fmt(v.urea, 1)}${v.etoh ? " + " + fmt(v.etoh, 0) : ""} = ${fmt(calc, 1)}; measured ${fmt(v.osm, 0)} → gap <strong>${fmt(out.og, 1)}</strong> mOsm/kg. ` +
+        (out.og > 10 ? `<span class="flag bad">Raised (&gt; 10)</span> — consider toxic alcohols, ethanol, mannitol and other osmoles; a normal gap does not exclude late toxic alcohol poisoning.` : `<span class="flag good">Not raised</span> (but the normal range is wide, and a normal gap does not exclude toxic alcohols).`), "og"]);
+    } else out.rows.push(["Calculated osmolality", `${fmt(calc, 1)} mOsm/kg (enter measured osmolality for the gap)`, "og"]);
+  }
+  // ---- Stewart ----
+  const assumed = [];
+  if (has("na", "k", "cl")) {
+    const ica = v.ica ?? (assumed.push("ionised Ca 1.2"), 1.2);
+    const mg = v.mg ?? (assumed.push("Mg 0.9"), 0.9);
+    const lac = v.lac ?? (assumed.push("lactate 0 (not entered)"), 0);
+    out.sida = v.na + v.k + 2 * ica + 2 * mg - v.cl - lac;
+    out.rows.push(["SIDa (apparent SID)", `${fmt(out.sida, 1)} mEq/L <span class="small muted">(often quoted ≈ 40–42)</span>`, "sida"]);
+  }
+  if (has("ph", "hco3", "alb")) {
+    const phos = v.phos ?? (assumed.push("phosphate 1.0"), 1.0);
+    const a = albMinus(v.alb, v.ph), p = phosMinus(phos, v.ph);
+    out.side = v.hco3 + a + p;
+    out.rows.push(["SIDe (effective SID)", `${fmt(v.hco3, 1)} + Alb⁻ ${fmt(a, 1)} + Pi⁻ ${fmt(p, 1)} = ${fmt(out.side, 1)} mEq/L`, "side"]);
+  }
+  if (out.sida !== undefined && out.side !== undefined) {
+    out.sig = out.sida - out.side;
+    out.rows.push(["Strong ion gap (SIDa − SIDe)", `<strong>${fmt(out.sig, 1)}</strong> mEq/L. <span class="small muted">No universally agreed normal value; a few mEq/L is common with these formulas. Large or rising values suggest unmeasured anions other than lactate.</span>`, "sig"]);
+  }
+  if (assumed.length) out.notes.push("Stewart variables used assumed values: " + assumed.join(", ") + ".");
+  // ---- Base excess partition ----
+  if (has("ph", "hco3")) {
+    out.sbe = vanSlykeSBE(v.hco3, v.ph);
+    out.rows.push(["Standard base excess (Van Slyke)", `${sgn(out.sbe, 1)} mmol/L`, "sbe"]);
+    if (has("na", "cl", "alb")) {
+      out.naclEff = v.na - v.cl - 38;
+      out.albEff = 0.25 * (42 - v.alb);
+      out.umaEff = out.sbe - out.naclEff - out.albEff;
+      out.rows.push(["Partitioned BE (Story, simplified)",
+        `Na–Cl effect ${sgn(out.naclEff, 1)} · Albumin effect ${sgn(out.albEff, 1)} · Unmeasured ions ${sgn(out.umaEff, 1)} mEq/L` +
+        (v.lac !== null ? ` <span class="small muted">(measured lactate ${fmt(v.lac, 1)} mmol/L for comparison)</span>` : "") +
+        `<br><span class="small muted">Negative = acidifying; positive = alkalinising.</span>`, "pbe"]);
+    }
+  }
+  return out;
+}
+
+function runCalculator() {
+  const { v, errors } = readInputs();
+  $("calc-errors").innerHTML = errors.map(e => "• " + e).join("<br>");
+  const out = analyseABG(v);
+  if (!out.rows.length) {
+    $("calc-out").innerHTML = `<p class="muted small">${out.notes.join(" ") || "Enter values to analyse."}</p>`;
+    return out;
+  }
+  $("calc-out").innerHTML = `<h3 style="margin-top:0">Results</h3>
+    <div class="table-wrap"><table class="result-table">${out.rows.map(r => `<tr data-key="${r[2]}"><td><strong>${r[0]}</strong></td><td>${r[1]}</td></tr>`).join("")}</table></div>
+    ${out.notes.length ? `<p class="small muted">${out.notes.join(" ")}</p>` : ""}
+    <p class="small muted">Educational aid only. Uses the formulas and assumptions described on this page.</p>`;
+  return out;
+}
+
+/* =====================================================================
+   CASES
+   ===================================================================== */
+const CASES = [
+  { id: "dka", title: "1. Diabetic ketoacidosis",
+    stem: "A 22-year-old with type 1 diabetes presents with two days of vomiting, abdominal pain and deep sighing respirations. Capillary ketones are high.",
+    labs: { ph: 7.23, pco2: 2.6, hco3: 8, na: 132, k: 5.6, cl: 96, alb: 42, lac: 2.0, glu: 32, urea: 9, osm: 312 },
+    q: "Classify the disorder, check compensation, and calculate the anion gap, delta ratio and osmolar gap.",
+    a: `<ol>
+      <li><strong>Acidaemia</strong> (pH 7.23) with low HCO₃⁻ → <strong>primary metabolic acidosis</strong>.</li>
+      <li><strong>Winter's:</strong> 1.5 × 8 + 8 = 20 ± 2 mmHg = 2.7 kPa (2.4–2.9). Measured 2.6 kPa (19.5 mmHg) → appropriate respiratory compensation.</li>
+      <li><strong>AG</strong> = 132 − (96 + 8) = <strong>28</strong>; corrected for albumin 42 g/L = 28 + 0.25 × (40 − 42) = <strong>27.5</strong> → HAGMA.</li>
+      <li><strong>Delta ratio</strong> = (27.5 − 12) ÷ (24 − 8) = <strong>0.97</strong> → ≈ 1, an uncomplicated HAGMA. Values near 1 are typical of DKA because ketoanions are lost in the urine.</li>
+      <li><strong>Osmolality:</strong> calculated 2 × 132 + 32 + 9 = 305; measured 312 → gap 7 (not raised).</li>
+      <li><strong>Sodium:</strong> hyperglycaemia draws water out of cells and dilutes Na⁺. Using Katz's factor (1.6 mmol/L per 5.6 mmol/L rise in glucose above 5.6), "corrected" Na⁺ ≈ 132 + 1.6 × (32 − 5.6)/5.6 ≈ 139.5; Hillier et al. found a larger factor (2.4), giving ≈ 143.</li>
+      <li><strong>Stewart:</strong> SIDa = 132 + 5.6 + 2.4 + 1.8 − 96 − 2.0 = 43.8; SIDe = 8 + 10.8 + 1.8 = 20.6; <strong>SIG ≈ 23</strong> → large unmeasured anion load (β-hydroxybutyrate, acetoacetate).</li>
+      <li><strong>Partitioned BE:</strong> SBE ≈ −17.6; Na–Cl effect −2; albumin effect 0; unmeasured ions ≈ −15.6 (far more than lactate 2.0 explains).</li>
+    </ol>
+    <p><strong>Teaching points:</strong> K⁺ is high despite total-body potassium depletion (insulin deficiency, hypertonicity). During treatment, as ketoanions are cleared or lost in urine and chloride-rich fluid is given, a normal-AG (hyperchloraemic) acidosis commonly emerges — a fall in SID — so HCO₃⁻ may lag behind ketone clearance.</p>` },
+  { id: "saline", title: "2. Saline-associated hyperchloraemic acidosis",
+    stem: "A 64-year-old is reviewed on day 2 after a laparotomy. They have received about 6 L of 0.9% sodium chloride over 24 hours. Observations are stable; lactate is normal.",
+    labs: { ph: 7.33, pco2: 4.3, hco3: 17, na: 141, k: 4.0, cl: 116, alb: 34, lac: 1.0, glu: 6, urea: 5, osm: 296 },
+    q: "What is the acid–base disorder and its mechanism?",
+    a: `<ol>
+      <li><strong>Acidaemia</strong> with low HCO₃⁻ → metabolic acidosis.</li>
+      <li><strong>Winter's:</strong> 1.5 × 17 + 8 = 33.5 ± 2 mmHg = 4.5 kPa (4.2–4.7). Measured 4.3 kPa (32.3 mmHg) → appropriate.</li>
+      <li><strong>AG</strong> = 141 − (116 + 17) = <strong>8</strong>; corrected = 8 + 0.25 × (40 − 34) = <strong>9.5</strong> → normal: a <strong>normal anion gap (hyperchloraemic) metabolic acidosis</strong>. Delta ratio not applicable (no raised AG).</li>
+      <li><strong>Partitioned BE:</strong> SBE ≈ −7.8; Na–Cl effect = 141 − 116 − 38 = <strong>−13</strong> (acidifying); albumin effect = 0.25 × (42 − 34) = +2 (alkalinising); unmeasured ions ≈ +3 → no unmeasured anion acidosis. The base deficit is fully explained by chloride.</li>
+      <li><strong>Stewart:</strong> SIDa = 141 + 4.0 + 2.4 + 1.8 − 116 − 1.0 = <strong>32.2</strong> (low). Saline has an SID of 0, so large volumes pull plasma SID down → acidosis.</li>
+      <li>Osmolar gap 296 − 293 = 3 (normal).</li>
+    </ol>
+    <p><strong>Differential diagnosis of NAGMA:</strong> chloride load (saline), GI bicarbonate loss (diarrhoea, high-output stoma, fistula), renal tubular acidosis, carbonic anhydrase inhibitors, ureteric diversion. The history here makes saline the obvious cause; balanced crystalloids (effective SID closer to 24–50) would have caused less change.</p>` },
+  { id: "lactic", title: "3. Lactic acidosis in septic shock (with hypoalbuminaemia)",
+    stem: "A 71-year-old with pneumonia is hypotensive despite initial fluids and has mottled skin.",
+    labs: { ph: 7.31, pco2: 4.0, hco3: 15, na: 138, k: 4.8, cl: 100, alb: 28, lac: 13, glu: 8, urea: 11 },
+    q: "Interpret the gas. How much does albumin matter here?",
+    a: `<ol>
+      <li><strong>Acidaemia</strong>, low HCO₃⁻ → metabolic acidosis.</li>
+      <li><strong>Winter's:</strong> 1.5 × 15 + 8 = 30.5 ± 2 mmHg = 4.1 kPa (3.8–4.3). Measured 4.0 kPa (30 mmHg) → appropriate.</li>
+      <li><strong>AG</strong> = 138 − (100 + 15) = <strong>23</strong>; corrected = 23 + 0.25 × (40 − 28) = <strong>26</strong>. Without the correction the AG is underestimated by 3.</li>
+      <li><strong>Delta ratio</strong> = (26 − 12) ÷ (24 − 15) = <strong>1.56</strong> → uncomplicated HAGMA; values around 1.6 are typical of lactic acidosis.</li>
+      <li><strong>Partitioned BE:</strong> SBE ≈ −10.0; Na–Cl 0; albumin effect <strong>+3.5</strong> (hypoalbuminaemia is alkalinising and partly hides the acidosis); unmeasured ions ≈ −13.5 — roughly matching the lactate of 13.</li>
+      <li><strong>Stewart:</strong> SIDa (lactate already subtracted) = 34.0; SIDe = 24.3; SIG ≈ 9.7. Part of this is the method's baseline offset, but it raises the possibility of other unmeasured anions (e.g. from acute kidney injury; urea 11).</li>
+    </ol>` },
+  { id: "vomit", title: "4. Persistent vomiting: metabolic alkalosis",
+    stem: "A 45-year-old has vomited repeatedly for five days because of gastric outlet obstruction. They are dry and weak.",
+    labs: { ph: 7.49, pco2: 6.4, hco3: 36, na: 134, k: 2.9, cl: 84, alb: 46, lac: 1.2, glu: 5, urea: 12 },
+    q: "Classify the disorder and explain it in Stewart terms.",
+    a: `<ol>
+      <li><strong>Alkalaemia</strong> with high HCO₃⁻ → <strong>primary metabolic alkalosis</strong>.</li>
+      <li><strong>Compensation:</strong> expected PaCO₂ ≈ 0.7 × 36 + 20 = 45.2 ± 5 mmHg = 6.0 kPa (5.4–6.7). Measured 6.4 kPa (48 mmHg) → appropriate hypoventilation.</li>
+      <li><strong>AG</strong> = 134 − (84 + 36) = 14; corrected for albumin 46 g/L = 12.5. The slight rise reflects haemoconcentration (higher albumin), not a HAGMA.</li>
+      <li><strong>Stewart:</strong> losing gastric HCl removes more Cl⁻ than Na⁺, so SID rises: SIDa = 134 + 2.9 + 2.4 + 1.8 − 84 − 1.2 = <strong>55.9</strong>. Partitioned BE: SBE ≈ +12.0, almost entirely the Na–Cl effect (+12).</li>
+    </ol>
+    <p><strong>Teaching points:</strong> this is a "chloride-responsive" alkalosis — urinary chloride is typically low. Hypovolaemia and secondary hyperaldosteronism drive renal K⁺ and H⁺ loss (hence hypokalaemia and a paradoxically acidic urine). Correcting it requires chloride (with potassium) — in Stewart terms, lowering the SID — rather than "removing bicarbonate".</p>` },
+  { id: "copd", title: "5. COPD: chronic respiratory acidosis",
+    stem: "A 72-year-old with severe COPD attends clinic for review. They are at their usual baseline and not acutely unwell.",
+    labs: { ph: 7.32, pco2: 9.0, hco3: 34, na: 139, k: 4.3, cl: 94, alb: 38, lac: 1.0 },
+    q: "Is this acute or chronic? Is there another process?",
+    a: `<ol>
+      <li><strong>Acidaemia</strong> with raised PaCO₂ → <strong>primary respiratory acidosis</strong>.</li>
+      <li>PaCO₂ 9.0 kPa = 67.5 mmHg, i.e. 27.5 mmHg above 40. Expected HCO₃⁻: <strong>acute</strong> 24 + 0.1 × 27.5 ≈ 26.8; <strong>chronic</strong> 24 + 0.4 × 27.5 = 35.0. Measured 34 → <strong>chronic, renally compensated respiratory acidosis</strong>.</li>
+      <li>If HCO₃⁻ had been ≈ 27 it would suggest an acute rise; between the two suggests acute-on-chronic. Above ≈ 37 would imply an additional metabolic alkalosis (e.g. diuretics or steroids).</li>
+      <li><strong>AG</strong> = 139 − (94 + 34) = 11 (corrected 11.5) → normal.</li>
+      <li><strong>Partitioned BE:</strong> SBE ≈ +7.8, explained by the Na–Cl effect (+7): renal compensation works by excreting chloride and raising the SID.</li>
+    </ol>
+    <p><strong>Teaching point:</strong> if PaCO₂ is lowered quickly (for example with ventilation), the compensatory high SID remains and a <strong>post-hypercapnic metabolic alkalosis</strong> can result until the kidneys retain chloride again.</p>` },
+  { id: "salicylate", title: "6. Salicylate poisoning: mixed disorder",
+    stem: "A 30-year-old took a large number of aspirin tablets about 6 hours ago. They have tinnitus, nausea and are breathing rapidly.",
+    labs: { ph: 7.49, pco2: 2.5, hco3: 14, na: 140, k: 3.6, cl: 103, alb: 40, lac: 2.5, glu: 6, urea: 5 },
+    q: "Why is the pH alkalaemic despite a low bicarbonate?",
+    a: `<ol>
+      <li><strong>Alkalaemia</strong> with a very low PaCO₂ (2.5 kPa = 18.8 mmHg) → <strong>primary respiratory alkalosis</strong> (salicylate directly stimulates the respiratory centre).</li>
+      <li>Expected HCO₃⁻ for an <em>acute</em> respiratory alkalosis: 24 − 0.2 × (40 − 18.8) ≈ 19.8. Measured 14 → much lower → an <strong>additional metabolic acidosis</strong>. (The chronic rule would predict ≈ 13.4, but full renal compensation cannot occur within 6 hours.)</li>
+      <li><strong>AG</strong> = 140 − (103 + 14) = <strong>23</strong> (albumin normal) → HAGMA confirmed independently.</li>
+      <li>Looked at from the other side, Winter's predicts PaCO₂ = 1.5 × 14 + 8 = 29 ± 2 mmHg (3.6–4.1 kPa) for the metabolic acidosis; the measured 2.5 kPa is far lower → additional respiratory alkalosis.</li>
+      <li><strong>Delta ratio</strong> = (23 − 12) ÷ (24 − 14) = 1.1 → no further hidden metabolic process.</li>
+    </ol>
+    <p><strong>Teaching points:</strong> mixed respiratory alkalosis plus HAGMA is the classic pattern of salicylate toxicity. The salicylate anion itself contributes only a small part of the AG; most comes from lactate, ketoanions and other organic acids. Measure the salicylate concentration and seek specialist toxicology advice (in the UK, TOXBASE / National Poisons Information Service). Loss of the respiratory compensation — for example if the patient tires or is sedated and ventilated with a "normal" minute volume — can cause a dangerous fall in pH.</p>` },
+  { id: "toxic", title: "7. Toxic alcohol: raised anion gap and osmolar gap",
+    stem: "A 48-year-old is found confused and ataxic. There is no smell of alcohol and ethanol is undetectable.",
+    labs: { ph: 7.26, pco2: 3.0, hco3: 10, na: 141, k: 4.6, cl: 102, alb: 42, lac: 2.0, glu: 5.5, urea: 6.0, osm: 330, etoh: 0 },
+    q: "What is the most important diagnosis to consider?",
+    a: `<ol>
+      <li><strong>Acidaemia</strong>, low HCO₃⁻ → metabolic acidosis. <strong>Winter's:</strong> 1.5 × 10 + 8 = 23 ± 2 mmHg = 3.1 kPa (2.8–3.3); measured 3.0 kPa → appropriate.</li>
+      <li><strong>AG</strong> = 141 − (102 + 10) = <strong>29</strong>; corrected 28.5. Lactate (2.0) and the history do not explain it.</li>
+      <li><strong>Delta ratio</strong> = (28.5 − 12) ÷ (24 − 10) = 1.18 → uncomplicated HAGMA.</li>
+      <li><strong>Osmolar gap:</strong> calculated = 2 × 141 + 5.5 + 6.0 = 293.5; measured 330 → gap <strong>36.5 mOsm/kg</strong> → markedly raised.</li>
+      <li>HAGMA + raised osmolar gap → <strong>toxic alcohol poisoning (ethylene glycol or methanol)</strong> until proven otherwise. Other causes of both include ketoacidoses and severe lactic acidosis, but these usually cause smaller gaps.</li>
+    </ol>
+    <p><strong>Teaching points:</strong> early after ingestion the osmolar gap is high and the AG normal; later, as toxic acids accumulate, the AG rises and the osmolar gap falls — so a normal osmolar gap does not exclude poisoning. Ethylene glycol metabolites (glycolate) can falsely elevate lactate on some blood gas analysers. Specific treatment (alcohol dehydrogenase blockade with fomepizole or ethanol, and haemodialysis) should be guided by the National Poisons Information Service / TOXBASE.</p>` },
+  { id: "hypoalb", title: "8. Hypoalbuminaemia masking an anion gap",
+    stem: "A 58-year-old with decompensated alcohol-related cirrhosis and suspected spontaneous bacterial peritonitis is hypotensive.",
+    labs: { ph: 7.35, pco2: 4.9, hco3: 20, na: 134, k: 4.0, cl: 103, alb: 18, lac: 4.5 },
+    q: "The anion gap is 11. Is there a HAGMA?",
+    a: `<ol>
+      <li>pH 7.35 (low end of normal) with HCO₃⁻ 20 → a mild metabolic acidosis.</li>
+      <li><strong>Winter's:</strong> 1.5 × 20 + 8 = 38 ± 2 mmHg = 5.1 kPa (4.8–5.3); measured 4.9 kPa → appropriate.</li>
+      <li><strong>AG</strong> = 134 − (103 + 20) = <strong>11</strong> — apparently normal. But albumin is 18 g/L: corrected AG = 11 + 0.25 × (40 − 18) = <strong>16.5</strong> → <strong>a hidden HAGMA</strong> (lactate 4.5).</li>
+      <li><strong>Delta ratio</strong> (corrected AG) = (16.5 − 12) ÷ (24 − 20) = 1.1.</li>
+      <li><strong>Partitioned BE:</strong> SBE ≈ −4.8 looks modest, but it is the sum of opposing effects: Na–Cl −7 (acidifying), albumin <strong>+6</strong> (alkalinising), unmeasured ions ≈ −3.8 (≈ the lactate).</li>
+      <li><strong>Stewart:</strong> low albumin = low A<sub>TOT</sub> → a hypoalbuminaemic metabolic alkalosis that offsets the lactic and hyperchloraemic acidoses. SIDa 34.7, SIDe 26.7, SIG ≈ 8.</li>
+    </ol>
+    <p><strong>Teaching point:</strong> always correct the AG for albumin in acutely unwell patients, who are frequently hypoalbuminaemic (Figge et al. 1998).</p>` }
+];
+
+function labsHtml(l) {
+  const map = [["ph", "pH", ""], ["pco2", "PaCO₂", " kPa"], ["hco3", "HCO₃⁻", ""], ["na", "Na⁺", ""], ["k", "K⁺", ""], ["cl", "Cl⁻", ""], ["alb", "Albumin", " g/L"], ["lac", "Lactate", ""], ["glu", "Glucose", ""], ["urea", "Urea", ""], ["osm", "Measured osm", " mOsm/kg"], ["etoh", "Ethanol", ""]];
+  return map.filter(m => l[m[0]] !== undefined).map(m => `<span>${m[1]} ${l[m[0]]}${m[2]}</span>`).join("");
+}
+function renderCases() {
+  $("case-list").innerHTML = CASES.map(c => `
+    <article class="card case" id="case-${c.id}">
+      <h3>${c.title}</h3>
+      <p>${c.stem}</p>
+      <div class="labs">${labsHtml(c.labs)}</div>
+      <p class="small muted">Units: mmol/L unless stated.</p>
+      <p><strong>Question:</strong> ${c.q}</p>
+      <div class="btn-row">
+        <button class="btn primary small" type="button" data-reveal="${c.id}" aria-expanded="false">Reveal answer</button>
+        <button class="btn small" type="button" data-load="${c.id}">Open in calculator</button>
+      </div>
+      <div class="answer hidden" id="ans-${c.id}">${c.a}</div>
+    </article>`).join("");
+  document.querySelectorAll("[data-reveal]").forEach(b => b.addEventListener("click", () => {
+    const el = $("ans-" + b.dataset.reveal);
+    const show = el.classList.contains("hidden");
+    el.classList.toggle("hidden", !show);
+    b.textContent = show ? "Hide answer" : "Reveal answer";
+    b.setAttribute("aria-expanded", show ? "true" : "false");
+  }));
+  document.querySelectorAll("[data-load]").forEach(b => b.addEventListener("click", () => { loadCase(b.dataset.load); location.hash = "#calculator"; }));
+  $("calc-example").innerHTML = `<option value="">— choose —</option>` + CASES.map(c => `<option value="${c.id}">${c.title}</option>`).join("");
+}
+function clearCalc() { Object.values(CALC_FIELDS).forEach(f => { $(f.id).value = ""; $(f.id).classList.remove("invalid"); }); $("calc-errors").innerHTML = ""; }
+function loadCase(id) {
+  const c = CASES.find(x => x.id === id);
+  if (!c) return;
+  clearCalc();
+  $("c-pco2-unit").value = "kPa";
+  for (const [k, val] of Object.entries(c.labs)) if (CALC_FIELDS[k]) $(CALC_FIELDS[k].id).value = val;
+  $("calc-example").value = id;
+  runCalculator();
+}
+
+/* =====================================================================
+   QUIZ
+   ===================================================================== */
+const QUIZ = [
+  { q: "In Stewart's approach, which are the three independent variables?", o: ["pH, HCO₃⁻ and PaCO₂", "PaCO₂, strong ion difference and total weak acid (A<sub>TOT</sub>)", "Na⁺, Cl⁻ and HCO₃⁻", "Base excess, anion gap and lactate"], a: 1, e: "PaCO₂, SID and A<sub>TOT</sub> are independent; H⁺ and HCO₃⁻ are dependent variables." },
+  { q: "What is the strong ion difference of 0.9% sodium chloride?", o: ["0", "24", "40", "154"], a: 0, e: "Na⁺ 154 − Cl⁻ 154 = 0, which is why large volumes cause a hyperchloraemic acidosis." },
+  { q: "AG 10 mmol/L, albumin 20 g/L. Using Figge's correction with a reference albumin of 40 g/L, what is the corrected AG?", o: ["10", "12.5", "15", "20"], a: 2, e: "10 + 0.25 × (40 − 20) = 15 — a HAGMA that the uncorrected AG would miss." },
+  { q: "HCO₃⁻ is 12 mmol/L in a pure metabolic acidosis. What PaCO₂ does Winter's formula predict?", o: ["≈ 26 ± 2 mmHg (≈ 3.5 kPa)", "≈ 40 mmHg (5.3 kPa)", "≈ 18 mmHg (2.4 kPa)", "≈ 32 mmHg (4.3 kPa)"], a: 0, e: "1.5 × 12 + 8 = 26 mmHg (range 24–28) ≈ 3.5 kPa (3.2–3.7)." },
+  { q: "A patient with a HAGMA has a delta ratio of 0.3. What does this suggest?", o: ["Pure lactic acidosis", "A coexisting metabolic alkalosis", "A predominantly normal-AG (hyperchloraemic) acidosis", "A laboratory error is certain"], a: 2, e: "A ratio < 0.4 suggests that the fall in HCO₃⁻ is mostly not due to unmeasured anions — i.e. a hyperchloraemic acidosis." },
+  { q: "Approximately how much of 1 L of 5% glucose remains in the plasma at equilibrium (idealised model)?", o: ["≈ 1000 mL", "≈ 250 mL", "≈ 80 mL", "None"], a: 2, e: "Free water distributes through total body water; plasma is ≈ 3.5/42 of it, so ≈ 80 mL." },
+  { q: "In Morgan's in-vitro haemodilution work, what crystalloid SID left pH unchanged?", o: ["≈ 0 mEq/L", "≈ 24 mEq/L", "≈ 40 mEq/L", "≈ 50 mEq/L"], a: 1, e: "≈ 24 mEq/L, about the plasma bicarbonate, because dilution of albumin (A<sub>TOT</sub>) is itself alkalinising." },
+  { q: "PaCO₂ has risen from 40 to 60 mmHg over several weeks. Roughly what HCO₃⁻ do you expect?", o: ["≈ 26 mmol/L", "≈ 32 mmol/L", "≈ 24 mmol/L", "≈ 40 mmol/L"], a: 1, e: "Chronic: ≈ 4 mmol/L per 10 mmHg → 24 + 8 = 32. (Acute would be ≈ 26.)" },
+  { q: "Which statement about the osmolar gap is correct?", o: ["A normal osmolar gap excludes toxic alcohol poisoning", "It should be measured by vapour-pressure osmometry", "It may be normal late after toxic alcohol ingestion, when the anion gap is high", "It is only raised by methanol"], a: 2, e: "As the parent alcohol is metabolised to acids, the osmolar gap falls while the AG rises. Freezing-point depression must be used." },
+  { q: "Which change is alkalinising in Stewart terms?", o: ["Hyperchloraemia", "Hypoalbuminaemia", "Hyperphosphataemia", "Rising lactate"], a: 1, e: "Low albumin lowers A<sub>TOT</sub>, which is alkalinising — it can mask an acidosis." }
+];
+const quizState = {};
+function renderQuiz() {
+  $("quiz-box").innerHTML = QUIZ.map((item, i) => `
+    <div class="quiz-q" id="qq-${i}">
+      <div><strong>Q${i + 1}.</strong> ${item.q}</div>
+      <div class="opts">${item.o.map((opt, j) => `<label id="qo-${i}-${j}"><input type="radio" name="q${i}" value="${j}"> <span>${opt}</span></label>`).join("")}</div>
+      <div class="expl hidden" id="qe-${i}"></div>
+    </div>`).join("");
+  QUIZ.forEach((item, i) => {
+    document.querySelectorAll(`input[name="q${i}"]`).forEach(inp => inp.addEventListener("change", () => {
+      const j = Number(inp.value);
+      quizState[i] = j === item.a;
+      item.o.forEach((_, k) => { const lab = $(`qo-${i}-${k}`); lab.classList.remove("correct", "wrong"); });
+      $(`qo-${i}-${item.a}`).classList.add("correct");
+      if (j !== item.a) $(`qo-${i}-${j}`).classList.add("wrong");
+      const ex = $(`qe-${i}`); ex.classList.remove("hidden");
+      ex.innerHTML = (j === item.a ? "<strong style='color:var(--ok)'>Correct.</strong> " : "<strong style='color:var(--danger)'>Not quite.</strong> ") + item.e;
+      updateScore();
+    }));
+  });
+  updateScore();
+}
+function updateScore() {
+  const answered = Object.keys(quizState).length, correct = Object.values(quizState).filter(Boolean).length;
+  $("quiz-score").textContent = `Score: ${correct} / ${answered} answered (of ${QUIZ.length})`;
+}
+
+/* =====================================================================
+   INITIALISATION
+   ===================================================================== */
+window.addEventListener("DOMContentLoaded", () => {
+  populateFluidSelects();
+  // Simulator listeners
+  $("fluid-select").addEventListener("change", e => { sim.fluid = e.target.value; resetSim(); });
+  $("lactate-slider").addEventListener("input", e => { sim.lac = parseFloat(e.target.value); $("lac-val").textContent = sim.lac.toFixed(1); renderSim(); });
+  $("paco2-slider").addEventListener("input", e => { sim.pco2 = parseFloat(e.target.value); $("paco2-val").textContent = sim.pco2.toFixed(1); $("paco2-mm").textContent = (sim.pco2 * KPA_TO_MMHG).toFixed(1); renderSim(); });
+  $("leak-toggle").addEventListener("change", e => { sim.leak = e.target.checked; renderSim(); });
+  $("play-btn").addEventListener("click", () => setPlaying(!sim.playing));
+  $("reset-btn").addEventListener("click", resetSim);
+  renderSim();
+  // Comparator
+  $("comp-select-a").addEventListener("change", updateComparatorUI);
+  $("comp-select-b").addEventListener("change", updateComparatorUI);
+  updateComparatorUI();
+  // K shift
+  $("micro-ph-slider").addEventListener("input", updateMicroUI);
+  $("k-type").addEventListener("change", updateMicroUI);
+  updateMicroUI();
+  // Starling
+  $("starling-preload").addEventListener("input", updateStarlingUI);
+  $("starling-inotropy").addEventListener("input", updateStarlingUI);
+  updateStarlingUI();
+  // Calculator
+  $("calc-btn").addEventListener("click", runCalculator);
+  $("calc-clear").addEventListener("click", () => { clearCalc(); $("calc-example").value = ""; $("calc-out").innerHTML = '<p class="muted small">Cleared.</p>'; });
+  $("calc-example").addEventListener("change", e => { if (e.target.value) loadCase(e.target.value); });
+  document.querySelectorAll("#calculator input").forEach(inp => inp.addEventListener("keydown", e => { if (e.key === "Enter") runCalculator(); }));
+  $("c-pco2-unit").addEventListener("change", e => {
+    const el = $("c-pco2"), x = Number(el.value);
+    if (el.value !== "" && isFinite(x)) el.value = e.target.value === "mmHg" ? (x * KPA_TO_MMHG).toFixed(1) : (x / KPA_TO_MMHG).toFixed(2);
+  });
+  // Cases & quiz
+  renderCases();
+  renderQuiz();
+  $("quiz-reset").addEventListener("click", () => { for (const k in quizState) delete quizState[k]; renderQuiz(); });
+});
+</script>
 </body>
 </html>
