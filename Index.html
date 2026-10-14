@@ -161,6 +161,14 @@ footer{margin-top:40px;border-top:1px solid var(--border);background:var(--surfa
 }
 @media print{.site-header,.subtabs,.btn{display:none}}
 </style>
+    <!-- Install as an app (PWA) -->
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#0e7490">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-title" content="Acid–Base">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 </head>
 <body>
 
@@ -1584,5 +1592,6 @@ window.addEventListener("DOMContentLoaded", () => {
   $("quiz-reset").addEventListener("click", () => { for (const k in quizState) delete quizState[k]; renderQuiz(); });
 });
 </script>
+    <script src="sw-register.js"></script>
 </body>
 </html>

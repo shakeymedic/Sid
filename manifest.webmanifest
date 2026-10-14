@@ -1,0 +1,37 @@
+{
+  "id": "./",
+  "name": "Acid–Base & Fluids Sandbox",
+  "short_name": "Acid–Base",
+  "description": "An emergency-medicine teaching site on acid–base analysis (traditional, base excess and Stewart physicochemical approaches), strong ion difference, intravenous fluids, an interactive calculator, simulators, worked cases and a quiz. Educational use only.",
+  "lang": "en-GB",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0e7490",
+  "categories": [
+    "medical",
+    "education"
+  ],
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
